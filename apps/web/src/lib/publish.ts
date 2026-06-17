@@ -56,7 +56,10 @@ export async function publishApp(
     const currentDoc = await repo.latestProtocolUnits(protocolId);
     const merge = await llm.mergeProtocolDoc({ protocolName: protoSlug, currentDoc, appName, appSteps: structured.steps });
 
-    if (merge.changed && merge.doc) {
+    if (merge.changed) {
+      if (!merge.doc || merge.doc.length === 0) {
+        throw new Error(`mergeProtocolDoc returned changed=true but no doc for protocol "${protoSlug}"`);
+      }
       const pNs = protocolNamespace(protoSlug);
       const pVersion = await repo.nextVersion(protocolId);
       const { id: pDocId } = await repo.createDocument({

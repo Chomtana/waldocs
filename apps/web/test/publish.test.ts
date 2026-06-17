@@ -64,6 +64,7 @@ describe("publishApp", () => {
     expect(res.blobIds).toEqual(["blob-1", "blob-2"]);
     expect(res.url).toBe("http://h/app/chomtana/waldocs");
     expect(res.mergedProtocols).toEqual([{ slug: "walrus", changed: false }]);
+    expect(log.showcaseFor).toEqual(["proto-1"]);
   });
 
   it("when merge is unchanged, writes NO protocol document", async () => {
