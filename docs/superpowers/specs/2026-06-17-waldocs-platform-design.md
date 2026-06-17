@@ -1,6 +1,6 @@
 # waldocs — Design Spec
 
-**Date:** 2026-06-17
+**Date:** 2026-06-17 (rev. 3)
 **Status:** Approved design → ready for implementation planning
 **Target:** Sui Overflow 2026 (Walrus track) hackathon MVP
 **Companion reference:** `walrus-implementation-guide.md` (§13 Walrus Memory / MemWal)
@@ -9,267 +9,264 @@
 
 ## 1. Summary
 
-**waldocs** is a unified developer-documentation platform. Contributors run a Claude Code slash command, **`/waldocs-publish`**, inside any repository; Claude synthesizes a structured dev-doc from that repo and publishes it to the platform. Documents are stored on **Walrus Memory** (decentralized, verifiable, semantically searchable) and indexed in **PostgreSQL**. A **Next.js** application exposes both the **HTTP APIs** and a **browse UI**.
+**waldocs** is a unified developer-documentation platform whose protocol docs **improve themselves from real app usage**. A contributor runs the Claude Code skill `waldocs-publish` in their app's repo; the skill sends the app's **step-by-step markdown** to the backend. The backend uses **Gemini (`gemini-3.1-flash-lite` via the Vercel AI SDK)** to:
 
-The plugin never touches Walrus Memory directly. It only calls the Next.js backend, which owns the Walrus Memory delegate key and performs all reads/writes.
+1. **structure** the app's markdown into modular steps,
+2. **merge** that knowledge into each protocol the app uses (keeping the protocol doc unchanged if the app doesn't improve it),
+3. **curate** each protocol's showcase of notable apps.
+
+Docs (app steps and synthesized protocol units) are stored on **Walrus Memory** (decentralized, verifiable, searchable) and indexed in **PostgreSQL**. A **Next.js** app serves the APIs and a browse UI, including a Gemini-powered global chat.
 
 ### Two core indexes
-- **Protocols** — infrastructure, or a notable application with its own ecosystem of integrations, that needs dev docs (e.g. "Sui", "Walrus", "Seal").
-- **Applications** — projects (typically hackathon builds) that **use** one or more protocols.
+- **Protocols** — infrastructure that needs dev docs (e.g. "Walrus", "Sui", "Seal"). **Pure merge targets**: auto-created as stubs on first reference; all content is synthesized by merging app contributions. Curated simple slug.
+- **Applications** — projects that **use** protocols. Identified by their git repo: slug `<author>/<repo>`.
 
-An application links to one or more protocols (many-to-many).
+### The modular-unit principle
+The smallest documentation unit is a **doc unit** — modular, covering exactly one feature (protocol) or one step (app), written as **one Walrus Memory `remember()`**. Read top-to-bottom, the units form a working walkthrough.
 
 ---
 
 ## 2. Goals / Non-goals
 
-### Goals (v1, hackathon)
-- `/waldocs-publish` end-to-end: repo → Claude-generated structured doc → stored on Walrus Memory → indexed in Postgres → updated central table-of-contents.
-- Browse UI listing the two indexes, an entity detail page rendering the doc, and global semantic search.
-- Per-entity semantic Q&A ("ask these docs").
-- Everything on **testnet / staging** (per `walrus-implementation-guide.md` hackathon convention).
+### Goals (v1)
+- `waldocs-publish` skill posts **app step-by-step markdown** → backend Gemini pipeline (structure → merge into protocols → curate showcase) → Walrus + Postgres.
+- Browse UI: home with **Gemini global chat** + protocol list; **protocol page** (grouped sidebar + curated showcase); **app page** (ordered steps).
+- Everything on **testnet / staging**.
 
-### Non-goals (explicitly deferred — YAGNI)
-- Authentication / user accounts (v1 is open / no-auth).
-- Doc versioning, diffs, or edit/delete UI.
-- Per-entity Sui accounts or self-hosted relayer.
-- Moderation / spam control beyond a soft rate limit and an audit log.
-- Wallet-signature publishing.
+### Non-goals (deferred)
+- Auth / accounts (open / no-auth v1).
+- Direct protocol publishing/seeding (protocols are merge-only).
+- Doc diffs, edit/delete UI, `forget`-on-republish, per-entity Sui accounts.
+- Human moderation beyond a soft rate limit + audit log.
 
 ---
 
-## 3. Key design decisions (with rationale)
+## 3. Key design decisions
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| Isolation model | **Single backend-owned MemWalAccount; one namespace per entity** | `account::create_account` enforces one account per Sui owner address. Namespaces give relayer-enforced isolation (`owner + namespace`, cross-namespace never decrypted) with near-zero key/gas overhead. |
-| Central TOC | **Reserved `_toc` namespace** in the same account | Functionally equivalent to a "central account" for discovery; avoids a second funded key. Promotable to its own account later. |
-| Doc granularity | **Chunk by section**, one `remember()` per section | Walrus Memory is text-memory-optimized (not large blobs); section chunks make `recall`/`ask` far more accurate than one giant memory. |
-| Where docs are generated | **In the plugin (Claude)**, backend stores only | Leverages Claude Code's strength; backend needs no LLM key and stays simple. |
-| Metadata + rendering | **Postgres** holds all structure/relationships/order + a **plaintext cache**; Walrus holds encrypted text + embeddings | The default MemWal client has no tags param and searches by meaning, not get-by-id-in-order. Postgres is the fast/ordered render path; Walrus is the verifiable + semantic source of truth (we persist every `walrus_blob_id`). |
-| Auth | **Open / no-auth** for v1 | Fastest demo path; record `publish_events` for later attribution; add a soft rate limit. |
-| Network | **Testnet + staging relayer** | Hackathon convention. |
+| Publish input | **App step-by-step markdown only** | Skill stays thin; backend owns structuring/merging. |
+| Protocol origin | **Pure merge targets** (stub on first reference) | All protocol content synthesized from app contributions, incl. an auto-generated GETTING STARTED. No second publish flow. |
+| Protocol identity | Curated slug; namespace `proto.<slug>` | Versioned by accepted merge. |
+| Application identity | git `<author>/<repo>` slug; namespace `<author>/<repo>/<commit>` | Identity from repo (never guessed); each commit its own namespace; latest commit shown. |
+| LLM | **Gemini `gemini-3.1-flash-lite` via Vercel AI SDK** for structure, merge, showcase curation, and chat | One provider; structured output via `generateObject` + zod. |
+| Merge strategy | **Whole-doc merge**: (current protocol doc + app doc) → updated doc OR "no change" | Simple, idempotent, testable; protects good content via the no-change path. |
+| Showcase curation | **On publish, cached** | Gemini picks notable, simple-first, dedups correlated apps, assigns short descriptive titles; stored in `showcase_entries`. Fast reads. |
+| Doc granularity | Modular unit = one `remember()` | Protocols: unit per feature in sidebar sections; apps: unit per step. |
+| Chat / ask | **Gemini RAG** over Walrus recall (drop MemWal `ask`) | We control retrieval + synthesis; avoids depending on MemWal's beta `ask`. |
+| Isolation | Single account; namespace per entity-version; `_toc` for discovery | Per guide §13. |
+| Metadata + render | Postgres holds structure/order + plaintext cache; Walrus holds encrypted text + embeddings | Postgres is render path; Walrus is verifiable + semantic source of truth. |
+| Auth / network | Open / no-auth; testnet + staging relayer | Hackathon. |
+| Publisher | Claude Code **skill** | Lighter than a plugin. |
 
 ---
 
 ## 4. Architecture
 
 ```
-┌─────────────────────┐      POST /api/publish        ┌──────────────────────────────┐
-│  Claude Code plugin │ ────────────────────────────▶ │  Next.js backend (apps/web)  │
-│  /waldocs-publish   │      JSON: doc sections,       │  - route handlers (APIs)     │
-│  (Claude synthesizes│      summary, entity, links    │  - lib/memwal.ts (SDK wrap)  │
-│   doc from repo)    │ ◀──────────────────────────── │  - Prisma/Drizzle → Postgres │
-└─────────────────────┘      { url, blobIds }          │  - browse UI (React)         │
-                                                        └───────────┬───────────┬──────┘
-                                                                    │           │
-                                              @mysten-incubation/memwal     SQL │
-                                                                    │           │
-                                                          ┌─────────▼──┐   ┌────▼─────────┐
-                                                          │  Walrus    │   │ PostgreSQL   │
-                                                          │  Memory    │   │ (our index + │
-                                                          │ (staging   │   │  cache)      │
-                                                          │  relayer)  │   └──────────────┘
-                                                          └────────────┘
+┌───────────────────────────┐  POST /api/publish (app markdown)  ┌──────────────────────────────┐
+│ Claude Code skill         │ ─────────────────────────────────▶ │  Next.js backend (apps/web)  │
+│  waldocs-publish          │   { entity(slug=author/repo,        │   Gemini pipeline:           │
+│  - derive slug+commit     │     commit), markdown,              │   1 structure app doc        │
+│    from git               │     usesProtocols }                 │   2 merge into each protocol │
+│  - send step-by-step .md  │ ◀───────────────────────────────── │   3 curate showcase          │
+└───────────────────────────┘   { url, version, blobIds }        │   + lib/memwal, Prisma       │
+                                                                   └─────┬──────────┬────────┬─────┘
+                                                                         │          │        │
+                                                       @mysten-incubation/memwal   SQL   Vercel AI
+                                                                         │          │      (Gemini)
+                                                              ┌──────────▼─┐  ┌─────▼────┐  │
+                                                              │  Walrus    │  │ Postgres │  │
+                                                              │  Memory    │  │          │  │
+                                                              └────────────┘  └──────────┘  │
+                                                                       ┌─────────────────────▼──┐
+                                                                       │ Google Generative AI    │
+                                                                       └─────────────────────────┘
 ```
-
-The backend holds **one delegate key + account ID** (server-only env) and talks to the **staging relayer** (`relayer-staging.memory.walrus.xyz`). The relayer internally embeds (OpenAI `text-embedding-3-small`, 1536-dim), Seal-encrypts, uploads to Walrus, and stores vectors in its own pgvector — none of which we manage. **Our** Postgres is a separate, platform-owned database.
 
 ---
 
 ## 5. Data model (PostgreSQL)
 
 ```sql
--- The two core indexes
 protocols(
-  id           uuid pk,
-  slug         text unique,          -- e.g. "walrus"
-  name         text,
-  category     text,                 -- e.g. "storage", "defi", "infra"
-  description  text,
-  namespace    text,                 -- "proto.<slug>"
-  toc_blob_id  text,                 -- Walrus blob id of its _toc summary memory
-  created_at   timestamptz,
-  updated_at   timestamptz
+  id, slug unique,            -- "walrus" (curated)
+  name, description, category,
+  namespace,                  -- "proto.<slug>"
+  toc_blob_id, created_at, updated_at
 )
 
 applications(
-  id           uuid pk,
-  slug         text unique,          -- e.g. "waldocs"
-  name         text,
-  description  text,
-  namespace    text,                 -- "app.<slug>"
-  toc_blob_id  text,
-  repo_url     text,
-  created_at   timestamptz,
-  updated_at   timestamptz
+  id, slug unique,            -- "<author>/<repo>", e.g. "chomtana/waldocs"
+  author, repo,               -- parsed from slug at publish
+  name, description,
+  namespace,                  -- LATEST: "<author>/<repo>/<commit>"
+  latest_commit, repo_url, toc_blob_id,
+  created_at, updated_at
 )
 
-application_protocols(                -- M:N: an app uses protocols
-  application_id uuid fk,
-  protocol_id    uuid fk,
-  primary key (application_id, protocol_id)
-)
+application_protocols(application_id, protocol_id, primary key(both))  -- raw "uses" links
 
 documents(
-  id           uuid pk,
-  entity_type  text,                 -- "protocol" | "application"
-  entity_id    uuid,                 -- fk to protocols.id or applications.id
-  title        text,
-  version      int,                  -- monotonically increasing per entity (latest wins for render)
-  repo_url     text,
-  summary      text,                 -- short summary (also written to _toc)
-  created_at   timestamptz
+  id, entity_type, entity_id,
+  version,                    -- monotonic per entity (latest renders); protocols bump per accepted merge
+  commit_hash,               -- apps only
+  namespace,                 -- namespace this version was written to
+  title, summary, source_markdown,   -- source_markdown = app's submitted .md (apps only)
+  created_at
 )
 
-doc_chunks(
-  id            uuid pk,
-  document_id   uuid fk,
-  ord           int,                 -- section order for rendering
-  section_title text,
-  content_cache text,                -- plaintext for fast ordered render
-  walrus_blob_id text,               -- proof the chunk is on Walrus
-  namespace     text,                -- entity namespace it was written to
-  created_at    timestamptz
+doc_units(
+  id, document_id, ord,
+  group_title,               -- protocols: sidebar section; apps: null (steps)
+  title, content_cache, walrus_blob_id, namespace, created_at
 )
 
-publish_events(
-  id           uuid pk,
-  entity_type  text,
-  entity_id    uuid,
-  document_id  uuid,
-  created_at   timestamptz,
-  meta         jsonb                 -- repo_url, chunk_count, client info
+showcase_entries(            -- curated, notable subset per protocol (rebuilt on publish)
+  id, protocol_id, application_id,
+  descriptive_title,         -- e.g. "Unified document application" (NOT <author>/<repo>)
+  simplicity_rank,           -- 0 = simplest first
+  cluster_key,               -- correlated apps share a key; only one per cluster is kept
+  created_at
 )
+
+publish_events(id, entity_type, entity_id, document_id, created_at, meta jsonb)
 ```
 
-**Namespace conventions (Walrus Memory):**
-- `proto.<slug>` — section memories for a protocol's current doc.
-- `app.<slug>` — section memories for an application's current doc.
-- `_toc` — exactly one summary memory per entity; content begins with a machine-parseable header line, e.g. `"[protocol:walrus] Walrus — decentralized blob storage…"`, so `recall` hits map back to an entity.
+**Namespaces:** protocol-version → `proto.<slug>`; app-version → `<author>/<repo>/<commit>`; `_toc` → one summary memory per entity (`"[protocol:walrus] …"` / `"[application:chomtana/waldocs] …"`).
 
-> Note on re-publish: v1 treats publish as **append** (MemWal `remember` is always append, never upsert — see guide §13.7). On re-publish we create a new `documents` row with `version+1`; the UI renders the **latest** version's chunks. Older Walrus memories persist (acceptable for v1; `forget` is a later enhancement).
+**Mandatory protocol structure (Gemini-maintained):** the synthesized protocol doc always contains a `GETTING STARTED` group with units `Introduction` and `Getting Started`, then body groups, with each unit covering one feature.
 
 ---
 
-## 6. Publish pipeline — `/waldocs-publish`
+## 6. Gemini layer (`lib/llm.ts`, injectable `LlmPort`)
 
-### 6.1 Plugin responsibilities (Claude)
-1. Parse optional args: `--as protocol|application`, `--slug <slug>`, `--name <name>`. If absent, infer from the repo and **confirm interactively** before sending.
-2. Gather repo context: `README*`, package manifests (`package.json`, `Cargo.toml`, `Move.toml`, …), key source files, and the current session.
-3. Synthesize:
-   - `sections`: ordered array of `{ section_title, content }` (e.g. Overview, Install, Usage, API, Examples, Notes).
-   - `summary`: 1–3 sentence summary for the TOC.
-   - `entity`: `{ type, slug, name, description, category? , repo_url }`.
-   - `uses_protocols` (applications only): array of protocol slugs the project integrates.
-4. `POST /api/publish` with the payload. Render the returned URL + blob count to the user.
+Vercel AI SDK + Google provider; model id from `GEMINI_MODEL` (`gemini-3.1-flash-lite`). All calls use `generateObject` with a zod schema.
 
-### 6.2 Publish request/response contract
+- `structureAppDoc(markdown): Promise<{ name: string; summary: string; steps: { title: string; content: string }[] }>`
+  Breaks the app's markdown into ordered modular steps + a 1–3 sentence summary + a human title.
+- `mergeProtocolDoc(args: { protocolName: string; currentDoc: GroupedUnit[]; appName: string; appSteps: { title: string; content: string }[] }): Promise<{ changed: boolean; doc?: GroupedUnit[]; summary?: string; description?: string }>`
+  Returns an updated full protocol doc when the app **improves** it (must keep GETTING STARTED→Introduction/Getting Started), else `{ changed: false }`.
+- `curateShowcase(args: { protocolName: string; candidates: { slug: string; name: string; summary: string }[] }): Promise<{ entries: { slug: string; descriptiveTitle: string; simplicityRank: number; clusterKey: string }[] }>`
+  Selects notable apps, simplest-first, one per `clusterKey` (drops correlated duplicates), with a short descriptive title.
+- `answerOverContext(args: { question: string; context: { label: string; text: string }[] }): Promise<{ answer: string; usedLabels: string[] }>`
+  RAG synthesis for chat + per-entity ask.
 
+`GroupedUnit = { group: string | null; title: string; content: string }`.
+
+---
+
+## 7. Publish pipeline — `POST /api/publish` (app-only)
+
+### 7.1 Request/response contract
 ```jsonc
 // POST /api/publish
 {
   "entity": {
-    "type": "application",            // "protocol" | "application"
-    "slug": "waldocs",
-    "name": "waldocs",
-    "description": "Unified dev-docs platform on Walrus Memory.",
-    "category": null,                 // protocols only
-    "repoUrl": "https://github.com/…"
+    "type": "application",
+    "slug": "chomtana/waldocs",                 // ^[^/]+/[^/]+$ (from git remote)
+    "name": "waldocs",                          // optional; Gemini may set if omitted
+    "description": "…", "repoUrl": "https://github.com/chomtana/waldocs",
+    "commitHash": "a7d490d"                      // required (git rev-parse HEAD)
   },
-  "summary": "waldocs lets devs publish repo docs to a decentralized, searchable platform.",
-  "sections": [
-    { "title": "Overview", "content": "…" },
-    { "title": "Install",  "content": "…" }
-  ],
-  "usesProtocols": ["walrus", "sui"]  // applications only; ignored for protocols
+  "markdown": "## Step 1: Install\n…\n## Step 2: …",  // step-by-step app docs
+  "usesProtocols": ["walrus", "sui"]
 }
 ```
 ```jsonc
 // 200 OK
-{
-  "url": "https://<host>/app/waldocs",
-  "entityType": "application",
-  "slug": "waldocs",
-  "documentId": "…",
-  "version": 1,
-  "blobIds": ["…", "…"],
-  "tocBlobId": "…"
-}
+{ "url": "https://<host>/app/chomtana/waldocs", "slug": "chomtana/waldocs",
+  "documentId": "…", "version": 1, "namespace": "chomtana/waldocs/a7d490d",
+  "blobIds": ["…"], "tocBlobId": "…",
+  "mergedProtocols": [ { "slug": "walrus", "changed": true }, { "slug": "sui", "changed": false } ] }
 ```
 
-### 6.3 Backend pipeline (`POST /api/publish`)
-1. Validate payload (zod). Reject empty `sections`.
-2. Resolve namespace: `proto.<slug>` or `app.<slug>`. Upsert the entity row (set `namespace`).
-3. Create `documents` row (`version = previous + 1`).
-4. For each section, in order: `memwal.rememberAndWait(content, namespace, { timeoutMs })` → persist a `doc_chunks` row with `walrus_blob_id`, `content_cache`, `ord`, `section_title`.
-5. Write/refresh the `_toc` memory: `rememberAndWait("[<type>:<slug>] <name> — <summary>", "_toc")` → store `toc_blob_id` on the entity.
-6. For applications: upsert `application_protocols` (auto-create stub protocol rows for unknown slugs so links never dangle).
-7. Insert `publish_events`.
-8. Return the contract response.
+### 7.2 Backend steps
+1. **Validate** (zod): `type=application`, slug `^[^/]+/[^/]+$`, `commitHash`, non-empty `markdown`, `usesProtocols`.
+2. **Structure app doc:** `llm.structureAppDoc(markdown)` → `{ name, summary, steps }`.
+3. **Store app:** namespace `<slug>/<commit>`; upsert application (parse `author`/`repo` from slug, set `namespace`+`latest_commit`); create `documents` (version+1, commit_hash, namespace, source_markdown, summary); for each step `rememberAndWait(content, ns)` → `doc_units` (group null, ord); write app `_toc`.
+4. **Merge into each used protocol:** for each slug in `usesProtocols`:
+   - upsert stub protocol if missing (namespace `proto.<slug>`); link `application_protocols`.
+   - load current protocol doc (latest version units) as `GroupedUnit[]`.
+   - `llm.mergeProtocolDoc({ protocolName, currentDoc, appName, appSteps })`.
+   - if `changed`: create protocol `documents` (version+1, namespace `proto.<slug>`, summary), write each unit `rememberAndWait(content, protoNs)` → `doc_units` (group_title set, ord), update protocol `description` + `_toc`. Else: leave unchanged.
+5. **Curate showcase** for each affected protocol: candidates = all linked apps (`{slug, name, summary}`); `llm.curateShowcase(...)` → replace that protocol's `showcase_entries`.
+6. **Audit:** insert `publish_events`. Return the contract (incl. per-protocol `changed`).
 
-Failure handling: the pipeline is best-effort sequential; if a section write fails, return `207`-style partial result with the chunks that succeeded and an `errors[]` array. Postgres writes for a given chunk happen only after its Walrus write resolves, so the DB never references a missing blob.
+> Publish performs several Gemini + Walrus calls (1 structure + N merges + M curations). Acceptable for v1; the skill shows progress and the endpoint may take seconds.
 
 ---
 
-## 7. Read / browse + API
+## 8. Read / browse + API
 
-### API (Next.js route handlers, `apps/web/app/api/**`)
-- `POST /api/publish` — §6.
-- `GET /api/protocols` · `GET /api/applications` — list the two indexes (Postgres).
-- `GET /api/protocols/:slug` · `GET /api/applications/:slug` — entity detail: latest document, ordered chunks (`content_cache`), linked protocols (apps), `blobIds`.
-- `POST /api/search` — `{ query }` → `memwal.recall({ query, namespace: "_toc", maxDistance })` → parse `[type:slug]` headers → return matching entities (joined with Postgres for display).
-- `POST /api/ask` — `{ entityType, slug, question }` → relayer `/api/ask` scoped to that entity's namespace → answer + source memories.
+### UI pages
+- **`/` (home):** **Gemini chat box on top** (`POST /api/chat`); below, **protocol list** sorted `created_at ASC` with name + short description.
+- **`/protocol/[slug]`:** **sidebar** from `doc_units.group_title` in order — `GETTING STARTED` (Introduction, Getting Started) first, body groups next, **`SHOWCASE`** last from `showcase_entries` (descriptive titles, simplest-first, linking to app pages). Body renders units; per-protocol "Ask these docs" (`/api/ask`).
+- **`/app/[author]/[repo]`:** single page, latest-commit `doc_units` as an **ordered step-by-step** sequence; linked protocols; per-app "Ask these docs".
+
+### API (Next.js route handlers)
+- `POST /api/publish` — §7.
+- `GET /api/protocols` — list, `created_at ASC`.
+- `GET /api/protocols/:slug` — grouped sections + curated showcase.
+- `GET /api/applications/:author/:repo` — latest-commit steps + linked protocols.
+- `POST /api/chat` — **global** Gemini RAG: two-stage retrieve (`recall(_toc)` → top ~3 entities → `recall` each namespace) → `answerOverContext` → `{ answer, citations }`.
+- `POST /api/ask` — per-entity Gemini RAG: `recall(entityNamespace)` → `answerOverContext`.
 - `GET /api/healthz` — relayer `health()` + DB ping.
 
-### UI pages (`apps/web/app/**`)
-- `/` — home: two lists (Protocols, Applications) + a global search box (calls `/api/search`).
-- `/protocol/[slug]` — renders the doc from ordered `content_cache`; shows applications that use it; "Ask these docs" box (`/api/ask`).
-- `/app/[slug]` — renders the doc; shows linked protocols; "Ask these docs" box.
+---
+
+## 9. Walrus Memory + env
+
+- SDK `@mysten-incubation/memwal` wrapped in `lib/memwal.ts` (`MemwalPort` = `remember` + `recall` + `health`; no `ask`).
+- Gemini in `lib/llm.ts` (`LlmPort`) via `@ai-sdk/google` + `ai`.
+- Env (server-only): `MEMWAL_PRIVATE_KEY`, `MEMWAL_ACCOUNT_ID`, `MEMWAL_SERVER_URL=https://relayer-staging.memory.walrus.xyz`, `MEMWAL_PACKAGE_ID`/`MEMWAL_REGISTRY_ID` (testnet), `DATABASE_URL`, `GOOGLE_GENERATIVE_AI_API_KEY`, `GEMINI_MODEL=gemini-3.1-flash-lite`, `OWNER_SUI_KEY` (seed only).
+- One-time bootstrap: `scripts/seed-account.ts` (testnet).
+- Rendering uses Postgres `content_cache`; retrieval uses `recall`; synthesis uses Gemini; verifiability from persisted `walrusBlobId`s.
 
 ---
 
-## 8. Walrus Memory integration details
-
-- SDK: `@mysten-incubation/memwal` (default `MemWal` client). Wrapper in `apps/web/lib/memwal.ts` builds a singleton from env.
-- Env (server-only): `MEMWAL_PRIVATE_KEY` (delegate, hex), `MEMWAL_ACCOUNT_ID`, `MEMWAL_SERVER_URL=https://relayer-staging.memory.walrus.xyz`, `MEMWAL_PACKAGE_ID`/`MEMWAL_REGISTRY_ID` (testnet, see guide §13.15), `DATABASE_URL`, `OWNER_SUI_KEY` (seed script only).
-- One-time bootstrap: `scripts/seed-account.ts` → `generateDelegateKey()` → `createAccount({ …, suiNetwork: "testnet" })` → `addDelegateKey(...)`; prints `MEMWAL_PRIVATE_KEY` + `MEMWAL_ACCOUNT_ID` to put in `.env`. Owner address must hold testnet SUI (faucet).
-- Reads for rendering use Postgres `content_cache`; reads for discovery/Q&A use `recall`/`ask`. We never reconstruct full ordered docs from Walrus directly (the default client is semantic, not get-by-id). Verifiability is provided by persisted `walrus_blob_id`s.
-
----
-
-## 9. Repo structure (monorepo)
+## 10. Repo structure (monorepo)
 
 ```
 waldocs/
-  apps/web/                     # Next.js (App Router): UI + API routes
-    app/                        #   pages + app/api/** route handlers
-    lib/memwal.ts               #   MemWal client singleton
-    lib/db.ts                   #   Prisma/Drizzle client
-    prisma/ or drizzle/         #   schema + migrations
-  packages/plugin/              # Claude Code plugin
-    commands/waldocs-publish.md #   slash command + doc-synthesis instructions
-    plugin.json                 #   plugin manifest
-  scripts/seed-account.ts       # one-time MemWal account/delegate bootstrap
-  docker-compose.yml            # local Postgres
+  apps/web/
+    src/lib/{types,validation,db,repo,memwal,llm,publish,merge,showcase,chat,toc,queries}.ts
+    src/app/api/**/route.ts
+    src/app/page.tsx
+    src/app/protocol/[slug]/page.tsx
+    src/app/app/[author]/[repo]/page.tsx
+    src/app/_components/{ChatBox,AskBox,Sidebar}.tsx
+    prisma/schema.prisma
+  scripts/seed-account.ts
+  packages/skill/waldocs-publish/SKILL.md
+  docker-compose.yml
   .env.example
 ```
 
 ---
 
-## 10. Testing strategy
+## 11. Testing strategy
 
-- **Backend unit:** publish pipeline with `lib/memwal.ts` mocked — asserts chunk ordering, namespace resolution, `application_protocols` linking, `_toc` write.
-- **Backend integration:** `POST /api/publish` against the **staging relayer** + a disposable test Postgres; assert blobs return and entity becomes listable + searchable.
-- **Plugin:** snapshot the synthesized payload shape against a sample repo (structure/required fields), not exact prose.
-- **E2E (stretch):** publish → appears in `/api/applications` → found via `/api/search` → answerable via `/api/ask`.
+- **Unit (deterministic, all ports faked — `MemwalPort`, `RepoPort`, `LlmPort`):**
+  - publish pipeline: app structuring path, namespace resolution (`proto.<slug>` vs `<slug>/<commit>`), author/repo parse, stub-protocol creation, merge **changed → writes new protocol version** vs **unchanged → no writes**, showcase rebuild, `_toc` writes.
+  - merge orchestration: `changed:false` leaves protocol untouched.
+  - showcase: one entry per `clusterKey`, ordered by `simplicityRank`.
+  - chat/ask: two-stage retrieval assembles context; citations map to `usedLabels`.
+  - toc encode/decode incl. slashed app slugs.
+- **Integration:** repo + queries vs local Postgres (grouped read, latest-commit steps, showcase read).
+- **Route:** publish/chat/ask handlers with mocked libs.
+- **Build/manual:** UI pages, seed script, skill.
+
+> `LlmPort` is faked in tests with canned structured objects — no live Gemini calls in unit tests.
 
 ---
 
-## 11. Risks / open caveats
+## 12. Risks / open caveats
 
-- **MemWal is beta**; SDK surface may shift. Pin versions; isolate all SDK calls in `lib/memwal.ts`.
-- **Append-only re-publish** leaves stale section memories on Walrus across versions — acceptable for v1; revisit with `forget`.
-- **Staging relayer availability / latency** (seconds per chunk) — keep docs modest; consider `rememberBulk` (≤20) to parallelize section writes if latency hurts the demo.
-- **Open publish endpoint** is abusable — soft rate limit + `publish_events` audit only for v1.
-- **`MystenLabs/MemWal` vs `CommandOSSLabs/MemWal`** repo ambiguity (guide §13.16) — confirm the canonical npm source before pinning.
+- **LLM cost/latency/nondeterminism:** each publish = 1 structure + N merges + M curations. Cap fan-out (chat top ≈3 entities). Keep prompts tight; use `generateObject` for schema safety.
+- **Merge could regress a protocol doc:** mitigated by the explicit improve-or-no-change contract + retained version history (rollback = render an earlier `documents` version).
+- **MemWal beta** — isolated in `lib/memwal.ts`.
+- **Append-only Walrus** — stale memories persist across versions/commits; `_toc` may hold multiple entries per app (dedup by slug on recall, prefer latest).
+- **Open publish endpoint** — soft rate limit + `publish_events`.
+- **`MystenLabs/MemWal` vs `CommandOSSLabs/MemWal`** ambiguity (guide §13.16) — confirm canonical npm source.
+- **Gemini model id** `gemini-3.1-flash-lite` taken as given — confirm exact id/availability in `@ai-sdk/google` before pinning.
