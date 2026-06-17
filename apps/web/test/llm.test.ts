@@ -27,4 +27,11 @@ describe("llm wrapper", () => {
     const out = await llm.curateShowcase({ protocolName: "Walrus", candidates: [] });
     expect(out.entries[0].descriptiveTitle).toBe("Demo");
   });
+
+  it("answerOverContext passes through gen's object", async () => {
+    const gen = fakeGen({ answer: "the answer", usedLabels: ["walrus"] });
+    const llm = createLlm(gen as never);
+    const out = await llm.answerOverContext({ question: "how?", context: [{ label: "walrus", text: "chunk" }] });
+    expect(out).toEqual({ answer: "the answer", usedLabels: ["walrus"] });
+  });
 });
