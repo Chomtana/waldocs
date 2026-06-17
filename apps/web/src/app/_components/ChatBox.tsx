@@ -7,10 +7,15 @@ export function ChatBox() {
   const [loading, setLoading] = useState(false);
   async function ask() {
     setLoading(true); setAnswer(null);
-    const res = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: q }) });
-    const json = await res.json();
-    setAnswer(res.ok ? json.answer : `Error: ${json.error ?? "failed"}`);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: q }) });
+      const json = await res.json();
+      setAnswer(res.ok ? json.answer : `Error: ${json.error ?? "failed"}`);
+    } catch {
+      setAnswer("Error: request failed. Is the backend running?");
+    } finally {
+      setLoading(false);
+    }
   }
   return (
     <div style={{ padding: 16, border: "2px solid #333", borderRadius: 8, marginBottom: 24 }}>

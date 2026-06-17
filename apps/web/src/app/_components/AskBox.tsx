@@ -7,10 +7,15 @@ export function AskBox({ entityType, slug }: { entityType: "protocol" | "applica
   const [loading, setLoading] = useState(false);
   async function ask() {
     setLoading(true); setAnswer(null);
-    const res = await fetch("/api/ask", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ entityType, slug, question: q }) });
-    const json = await res.json();
-    setAnswer(res.ok ? json.answer : `Error: ${json.error ?? "failed"}`);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/ask", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ entityType, slug, question: q }) });
+      const json = await res.json();
+      setAnswer(res.ok ? json.answer : `Error: ${json.error ?? "failed"}`);
+    } catch {
+      setAnswer("Error: request failed. Is the backend running?");
+    } finally {
+      setLoading(false);
+    }
   }
   return (
     <div style={{ marginTop: 24, padding: 12, border: "1px solid #ddd" }}>

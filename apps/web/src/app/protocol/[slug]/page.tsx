@@ -17,7 +17,7 @@ export default async function ProtocolPage({ params }: { params: Promise<{ slug:
           <div key={s.group} style={{ marginTop: 12 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: "#888" }}>{s.group}</div>
             <ul style={{ listStyle: "none", padding: 0 }}>
-              {s.units.map((u) => <li key={u.title}><a href={`#${encodeURIComponent(u.title)}`}>{u.title}</a></li>)}
+              {s.units.map((u) => <li key={u.blobId}><a href={`#${encodeURIComponent(u.title)}`}>{u.title}</a></li>)}
             </ul>
           </div>
         ))}
@@ -34,7 +34,7 @@ export default async function ProtocolPage({ params }: { params: Promise<{ slug:
           <section key={s.group}>
             <h2 style={{ color: "#888", fontSize: 14 }}>{s.group}</h2>
             {s.units.map((u) => (
-              <div key={u.title} id={encodeURIComponent(u.title)}>
+              <div key={u.blobId} id={encodeURIComponent(u.title)}>
                 <h3>{u.title}</h3>
                 <p style={{ whiteSpace: "pre-wrap" }}>{u.content}</p>
               </div>
