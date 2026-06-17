@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Protocol {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  category    String?
+  description String?
+  namespace   String
+  tocBlobId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  apps        ApplicationProtocol[]
+  showcase    ShowcaseEntry[]
+}
+
+model Application {
+  id           String   @id @default(uuid())
+  slug         String   @unique
+  author       String
+  repo         String
+  name         String
+  description  String?
+  namespace    String
+  latestCommit String?
+  repoUrl      String?
+  tocBlobId    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  protocols    ApplicationProtocol[]
+  showcase     ShowcaseEntry[]
+}
+
+model ApplicationProtocol {
+  applicationId String
+  protocolId    String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  protocol      Protocol    @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+
+  @@id([applicationId, protocolId])
+}
+
+model Document {
+  id             String    @id @default(uuid())
+  entityType     String
+  entityId       String
+  version        Int
+  commitHash     String?
+  namespace      String
+  title          String
+  summary        String
+  sourceMarkdown String?
+  createdAt      DateTime  @default(now())
+  units          DocUnit[]
+
+  @@index([entityType, entityId, version])
+}
+
+model DocUnit {
+  id           String   @id @default(uuid())
+  documentId   String
+  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  ord          Int
+  groupTitle   String?
+  title        String
+  contentCache String
+  walrusBlobId String
+  namespace    String
+  createdAt    DateTime @default(now())
+}
+
+model ShowcaseEntry {
+  id               String      @id @default(uuid())
+  protocolId       String
+  applicationId    String
+  protocol         Protocol    @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  application      Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  descriptiveTitle String
+  simplicityRank   Int
+  clusterKey       String
+  createdAt        DateTime    @default(now())
+
+  @@unique([protocolId, applicationId])
+}
+
+model PublishEvent {
+  id         String   @id @default(uuid())
+  entityType String
+  entityId   String
+  documentId String
+  createdAt  DateTime @default(now())
+  meta       Json?
+}
