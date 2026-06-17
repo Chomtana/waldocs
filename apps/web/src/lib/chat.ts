@@ -25,13 +25,13 @@ export async function globalChat(
     const key = `${d.type}:${d.slug}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    entities.push(d);
+    entities.push({ entityType: d.type, slug: d.slug });
     if (entities.length >= topN) break;
   }
 
   const context: { label: string; text: string }[] = [];
   for (const e of entities) {
-    const ns = await deps.resolveNamespace(e.type, e.slug);
+    const ns = await deps.resolveNamespace(e.entityType, e.slug);
     const hits = await deps.memwal.recall(question, ns, { limit: MAX_CTX_PER_ENTITY, maxDistance: 0.8 });
     for (const h of hits.results) context.push({ label: e.slug, text: h.text });
   }
