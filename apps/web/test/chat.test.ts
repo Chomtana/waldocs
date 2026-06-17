@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { globalChat, entityAsk } from "@/lib/chat";
 import type { MemwalPort, LlmPort } from "@/lib/types";
 
@@ -21,6 +21,10 @@ const llm: LlmPort = {
 };
 
 describe("globalChat", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("resolves top entities and answers over their context", async () => {
     const memwal = memwalWith(
       [{ text: "[protocol:walrus] Walrus — storage" }, { text: "[application:a/b] b — demo" }],
@@ -29,15 +33,19 @@ describe("globalChat", () => {
     const resolveNamespace = async (type: string, slug: string) =>
       type === "protocol" ? `proto.${slug}` : "a/b/c";
     const out = await globalChat("how to store?", { memwal, llm, resolveNamespace, topN: 3 });
-    expect(out.answer).toContain("ctx");
+    expect(out.answer).toBe("from 2 ctx");
     expect(out.citations.map((c) => c.slug).sort()).toEqual(["a/b", "walrus"]);
   });
 });
 
 describe("entityAsk", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("answers over a single namespace", async () => {
     const memwal = memwalWith([], { "proto.walrus": ["chunk1", "chunk2"] });
     const out = await entityAsk("q", "proto.walrus", "walrus", { memwal, llm });
-    expect(out.answer).toContain("ctx");
+    expect(out.answer).toBe("from 2 ctx");
   });
 });
