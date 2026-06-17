@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["test/**/*.test.ts"],
-    alias: { "server-only": path.resolve(__dirname, "./src/lib/server-only-stub.ts") },
+    alias: { "server-only": path.resolve(__dirname, "./test/server-only-stub.ts") },
+    fileParallelism: false,
   },
 });
