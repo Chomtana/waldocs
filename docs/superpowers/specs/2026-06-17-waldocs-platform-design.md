@@ -237,10 +237,10 @@ waldocs/
     src/app/app/[author]/[repo]/page.tsx
     src/app/_components/{ChatBox,AskBox,Sidebar}.tsx
     prisma/schema.prisma
+    .env.example                 # env template (copy to apps/web/.env)
   scripts/seed-account.ts
   packages/skill/waldocs-publish/SKILL.md
   docker-compose.yml
-  .env.example
 ```
 
 ---

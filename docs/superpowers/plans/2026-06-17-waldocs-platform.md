@@ -27,8 +27,9 @@
 
 ```
 waldocs/
-  package.json, pnpm-workspace.yaml, docker-compose.yml, .env.example, .gitignore
+  package.json, pnpm-workspace.yaml, docker-compose.yml, .gitignore
   apps/web/
+    .env.example                       # env template (copy to apps/web/.env)
     package.json, tsconfig.json, next.config.ts, vitest.config.ts
     prisma/schema.prisma
     src/lib/types.ts        # domain types + ports (no deps)
@@ -55,7 +56,7 @@ waldocs/
 **Files:**
 - Create: `package.json`, `pnpm-workspace.yaml`, `docker-compose.yml`, `.gitignore`
 - Create: `apps/web/package.json`, `apps/web/tsconfig.json`, `apps/web/next.config.ts`, `apps/web/vitest.config.ts`, `apps/web/src/app/layout.tsx`, `apps/web/test/smoke.test.ts`
-- Note: `.env.example` already exists at repo root — leave it.
+- Note: `apps/web/.env.example` already exists — leave it (it's the env template; copy to `apps/web/.env`).
 
 **Interfaces:**
 - Produces: buildable Next.js app under `apps/web`; `pnpm --filter web test` runs vitest; `pnpm seed:account` loads `apps/web/.env`.
