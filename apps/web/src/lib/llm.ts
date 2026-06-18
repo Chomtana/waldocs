@@ -78,8 +78,10 @@ export function createLlm(gen: Gen): LlmPort {
 
 function defaultGen(): Gen {
   // Route through Vercel AI Gateway (auth: AI_GATEWAY_API_KEY, or Vercel OIDC on deploy).
-  // GEMINI_MODEL is the bare Google model id; the gateway expects "google/<model>".
-  const model = gateway(`google/${process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite"}`);
+  // GEMINI_MODEL may be a bare model id (we prefix "google/") or a full
+  // "<creator>/<model>" gateway slug (used verbatim).
+  const m = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
+  const model = gateway(m.includes("/") ? m : `google/${m}`);
   return (args) => generateObject({ model, schema: args.schema, prompt: args.prompt });
 }
 
