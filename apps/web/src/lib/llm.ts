@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
-import { generateObject, gateway } from "ai";
+import { generateObject } from "ai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { LlmPort } from "./types";
 
 const stepSchema = z.object({ title: z.string(), content: z.string() });
@@ -101,11 +102,14 @@ export function withRetry(gen: Gen, attempts = 3): Gen {
 }
 
 function defaultGen(): Gen {
-  // Route through Vercel AI Gateway (auth: AI_GATEWAY_API_KEY, or Vercel OIDC on deploy).
-  // GEMINI_MODEL may be a bare model id (we prefix "google/") or a full
-  // "<creator>/<model>" gateway slug (used verbatim).
-  const m = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
-  const model = gateway(m.includes("/") ? m : `google/${m}`);
+  // Route through OpenRouter (OpenAI-compatible). Auth: OPENROUTER_API_KEY.
+  // GEMINI_MODEL is the OpenRouter model slug, e.g. "google/gemini-2.5-flash-lite".
+  const openrouter = createOpenAICompatible({
+    name: "openrouter",
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey: process.env.OPENROUTER_API_KEY ?? "",
+  });
+  const model = openrouter(process.env.GEMINI_MODEL ?? "google/gemini-2.5-flash-lite");
   const raw: Gen = (args) => generateObject({ model, schema: args.schema, prompt: args.prompt });
   return withRetry(raw, 3);
 }
