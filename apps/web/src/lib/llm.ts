@@ -28,9 +28,12 @@ export function createLlm(gen: Gen): LlmPort {
         schema: structureSchema,
         prompt:
           "Break this app's step-by-step markdown into ordered modular steps (each step = exactly one action; " +
-          "following them top-to-bottom must work). If the markdown opens with an '## Environment' block listing the " +
-          "protocols/SDKs/versions it was built against, KEEP it verbatim as the FIRST step titled 'Environment' (it is " +
-          "load-bearing version context). Return a short human title, a 1-3 sentence summary, and the steps.\n\n" +
+          "following them top-to-bottom must work). PRESERVE every fenced code block / shell command from the source " +
+          "verbatim inside its step — never collapse code into prose; each step should keep its concrete example. If the " +
+          "source used a placeholder token or comment stub (PKG, OWNER, <your-key>, '// fill this in'), replace it with a " +
+          "realistic MOCK value (real package@version, 0x-prefixed ids, suiprivkey1… keys, https URLs). If the markdown opens " +
+          "with an '## Environment' block listing the protocols/SDKs/versions it was built against, KEEP it verbatim as the " +
+          "FIRST step titled 'Environment'. Return a short human title, a 1-3 sentence summary, and the steps.\n\n" +
           markdown,
       });
       return object;
@@ -41,6 +44,11 @@ export function createLlm(gen: Gen): LlmPort {
         prompt:
           `You maintain the developer docs for the protocol "${protocolName}". The doc is an ordered list of units, ` +
           `each with a sidebar group, and MUST keep a "GETTING STARTED" group containing units titled "Introduction" and "Getting Started". ` +
+          `EXAMPLES ARE MANDATORY: every unit's content MUST contain at least one concrete, copy-pasteable fenced code block ` +
+          "(```bash, ```ts, ```env, …) — a real command and/or code — never prose-only. Preserve real code from the app's steps " +
+          `rather than describing it. Fill every example with realistic MOCK values (real package@version, 0x-prefixed object ids ` +
+          `like 0x28bdd2e9…, suiprivkey1… keys, https URLs); NEVER use placeholder tokens (no PKG, REG, OWNER, <your-key>, "…") ` +
+          `or comment stubs (no "// fill this in"). A reader must be able to copy a block and run it with only trivial substitution. ` +
           `The app's first step is usually an "Environment" block naming the SDK package(s) and exact versions it used. ` +
           `Treat that version info as authoritative: keep the protocol doc's code on the CURRENT, non-deprecated syntax for the ` +
           `newest SDK version you have seen across apps; if this app uses a newer version whose syntax supersedes a deprecated form ` +

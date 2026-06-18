@@ -35,7 +35,7 @@ You publish **this application's** step-by-step documentation to the waldocs bac
    ## Step 2: ...
    ```
 
-   Keep it **modular**: each step is one self-contained action, and following them top-to-bottom must produce a working result. Prefer real commands and code from this repo. If you used a syntax/API that you know replaced an older deprecated one, say so in the relevant step (e.g. "use `SuiJsonRpcClient`; the old `SuiClient` was removed in @mysten/sui 2.x").
+   Keep it **modular**: each step is one self-contained action, and following them top-to-bottom must produce a working result. **Every step MUST include at least one runnable fenced code block or shell command** (real commands/code from this repo) — never prose-only. Fill examples with realistic **mock values** (real `package@version`, `0x…` ids, `suiprivkey1…` keys, https URLs); never use placeholder tokens (`PKG`, `<your-key>`, `…`) or comment stubs (`// fill this in`). If you used a syntax/API that replaced a deprecated one, say so in the relevant step (e.g. "use `SuiJsonRpcClient`; the old `SuiClient` was removed in @mysten/sui 2.x").
 
 4. **Determine `usesProtocols`:** lowercase slugs of the protocols this project integrates (e.g. `["walrus","sui","seal"]`), inferred from dependencies/imports/config. Use simple slugs, not repo paths. These must match the protocols named in your `## Environment` block.
 

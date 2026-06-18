@@ -17,7 +17,7 @@ const llm: LlmPort = {
   async structureAppDoc() { return { name: "", summary: "", steps: [] }; },
   async mergeProtocolDoc() { return { changed: false }; },
   async curateShowcase() { return { entries: [] }; },
-  answerOverContext: vi.fn(async ({ context }) => ({ answer: `from ${context.length} ctx`, usedLabels: context.map((c) => c.label) })),
+  answerOverContext: vi.fn(async ({ context }) => ({ answer: `from ${context.length} ctx`, usedLabels: context.map((c: { label: string }) => c.label) })),
 };
 
 describe("globalChat", () => {
