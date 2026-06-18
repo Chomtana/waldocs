@@ -11,10 +11,14 @@ async function main() {
   if (!ownerKey) throw new Error("Set OWNER_SUI_KEY (bech32 suiprivkey1...) funded with testnet SUI.");
 
   const { generateDelegateKey, createAccount, addDelegateKey } = await import("@mysten-incubation/memwal/account");
+  // @mysten/sui 2.x renamed the old `SuiClient` (now SuiJsonRpcClient), so memwal's
+  // account utils can't build one internally — construct it here and pass it in.
+  const { SuiJsonRpcClient, getJsonRpcFullnodeUrl } = await import("@mysten/sui/jsonRpc");
+  const suiClient = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl("testnet"), network: "testnet" });
 
   const delegate = await generateDelegateKey();
-  const account = await createAccount({ packageId: PKG, registryId: REG, suiPrivateKey: ownerKey, suiNetwork: "testnet" });
-  await addDelegateKey({ packageId: PKG, accountId: account.accountId, publicKey: delegate.publicKey, label: "waldocs-backend", suiPrivateKey: ownerKey, suiNetwork: "testnet" });
+  const account = await createAccount({ packageId: PKG, registryId: REG, suiPrivateKey: ownerKey, suiNetwork: "testnet", suiClient });
+  await addDelegateKey({ packageId: PKG, accountId: account.accountId, publicKey: delegate.publicKey, label: "waldocs-backend", suiPrivateKey: ownerKey, suiNetwork: "testnet", suiClient });
 
   console.log("\n# Paste into apps/web/.env :");
   console.log(`MEMWAL_PRIVATE_KEY=${delegate.privateKey}`);

@@ -16,7 +16,10 @@ importers:
     dependencies:
       '@mysten-incubation/memwal':
         specifier: latest
-        version: 0.0.7(@mysten/seal@1.2.0(@mysten/sui@2.18.0(typescript@5.9.3)))(@mysten/sui@2.18.0(typescript@5.9.3))(ai@5.0.204(zod@3.25.76))(zod@3.25.76)
+        version: 0.0.7(@mysten/seal@1.2.0(@mysten/sui@2.19.0(typescript@5.9.3)))(@mysten/sui@2.19.0(typescript@5.9.3))(ai@5.0.204(zod@3.25.76))(zod@3.25.76)
+      '@mysten/sui':
+        specifier: ^2.19.0
+        version: 2.19.0(typescript@5.9.3)
       '@prisma/client':
         specifier: ^6.0.0
         version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
@@ -573,8 +576,8 @@ packages:
     peerDependencies:
       '@mysten/sui': ^2.18.0
 
-  '@mysten/sui@2.18.0':
-    resolution: {integrity: sha512-CW6T1giC9d3QzZPxRXjGxMnBndGf6EONBoAX3HVKn58z4smgYbbBga79IzxhRqMVPyMAhYZVaFJLqE/xjCMUOw==}
+  '@mysten/sui@2.19.0':
+    resolution: {integrity: sha512-dXhYK3pUiaybEB6T9nru+cPrFa61NMSjEknOCoAEV5WCC589iY6bP7EM+H84DBMZttB1LhD3gpYnPntQ4Vvcgg==}
     engines: {node: '>=22'}
 
   '@mysten/utils@0.4.0':
@@ -1584,10 +1587,10 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
-  '@mysten-incubation/memwal@0.0.7(@mysten/seal@1.2.0(@mysten/sui@2.18.0(typescript@5.9.3)))(@mysten/sui@2.18.0(typescript@5.9.3))(ai@5.0.204(zod@3.25.76))(zod@3.25.76)':
+  '@mysten-incubation/memwal@0.0.7(@mysten/seal@1.2.0(@mysten/sui@2.19.0(typescript@5.9.3)))(@mysten/sui@2.19.0(typescript@5.9.3))(ai@5.0.204(zod@3.25.76))(zod@3.25.76)':
     dependencies:
-      '@mysten/seal': 1.2.0(@mysten/sui@2.18.0(typescript@5.9.3))
-      '@mysten/sui': 2.18.0(typescript@5.9.3)
+      '@mysten/seal': 1.2.0(@mysten/sui@2.19.0(typescript@5.9.3))
+      '@mysten/sui': 2.19.0(typescript@5.9.3)
       '@noble/ed25519': 2.3.0
       '@noble/hashes': 2.2.0
     optionalDependencies:
@@ -1599,14 +1602,14 @@ snapshots:
       '@mysten/utils': 0.4.0
       '@scure/base': 2.2.0
 
-  '@mysten/seal@1.2.0(@mysten/sui@2.18.0(typescript@5.9.3))':
+  '@mysten/seal@1.2.0(@mysten/sui@2.19.0(typescript@5.9.3))':
     dependencies:
       '@mysten/bcs': 2.1.0
-      '@mysten/sui': 2.18.0(typescript@5.9.3)
+      '@mysten/sui': 2.19.0(typescript@5.9.3)
       '@noble/curves': 2.2.0
       '@noble/hashes': 2.2.0
 
-  '@mysten/sui@2.18.0(typescript@5.9.3)':
+  '@mysten/sui@2.19.0(typescript@5.9.3)':
     dependencies:
       '@graphql-typed-document-node/core': 3.2.0(graphql@16.14.2)
       '@mysten/bcs': 2.1.0

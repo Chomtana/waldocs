@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "pnpm --filter web dev",
     "test": "pnpm --filter web test",
-    "seed:account": "tsx --env-file=apps/web/.env scripts/seed-account.ts"
+    "seed:account": "tsx --env-file=apps/web/.env apps/web/scripts/seed-account.ts"
   },
   "devDependencies": { "tsx": "^4.19.0" }
 }
