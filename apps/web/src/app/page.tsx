@@ -7,17 +7,25 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const protocols = await listProtocols();
   return (
-    <main style={{ maxWidth: 820, margin: "2rem auto", fontFamily: "system-ui", padding: "0 1rem" }}>
-      <h1>waldocs</h1>
+    <main className="container">
+      <div className="hero">
+        <h1>waldocs</h1>
+        <p className="tagline">Unified developer docs on Walrus Memory — improved by real app usage.</p>
+      </div>
       <ChatBox />
-      <h2>Protocols</h2>
-      <ul>
+      <div className="section-label">Protocols</div>
+      <ul className="card-list">
         {protocols.map((p) => (
-          <li key={p.slug} style={{ marginBottom: 8 }}>
-            <Link href={`/protocol/${p.slug}`}><strong>{p.name}</strong></Link>
-            {p.description ? <div style={{ color: "#555" }}>{p.description}</div> : null}
+          <li key={p.slug}>
+            <Link href={`/protocol/${p.slug}`} className="card">
+              <div className="card-title">{p.name}</div>
+              {p.description ? <div className="card-desc">{p.description}</div> : null}
+            </Link>
           </li>
         ))}
+        {protocols.length === 0 && (
+          <li className="card-desc">No protocols yet — publish an app with the waldocs-publish skill.</li>
+        )}
       </ul>
     </main>
   );

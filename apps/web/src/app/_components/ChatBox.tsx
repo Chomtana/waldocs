@@ -6,7 +6,8 @@ export function ChatBox() {
   const [answer, setAnswer] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   async function ask() {
-    setLoading(true); setAnswer(null);
+    setLoading(true);
+    setAnswer(null);
     try {
       const res = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: q }) });
       const json = await res.json();
@@ -18,13 +19,18 @@ export function ChatBox() {
     }
   }
   return (
-    <div style={{ padding: 16, border: "2px solid #333", borderRadius: 8, marginBottom: 24 }}>
-      <strong>Ask waldocs anything</strong>
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="How do I store a blob on Walrus?" style={{ flex: 1, padding: 8 }} />
+    <div className="askbox hero-chat">
+      <span className="label">Ask waldocs anything</span>
+      <div className="row">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && q && !loading && ask()}
+          placeholder="How do I store a blob on Walrus?"
+        />
         <button onClick={ask} disabled={loading || !q}>{loading ? "…" : "Ask"}</button>
       </div>
-      {answer && <p style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>{answer}</p>}
+      {answer && <p className="answer">{answer}</p>}
     </div>
   );
 }

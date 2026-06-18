@@ -6,7 +6,8 @@ export function AskBox({ entityType, slug }: { entityType: "protocol" | "applica
   const [answer, setAnswer] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   async function ask() {
-    setLoading(true); setAnswer(null);
+    setLoading(true);
+    setAnswer(null);
     try {
       const res = await fetch("/api/ask", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ entityType, slug, question: q }) });
       const json = await res.json();
@@ -18,13 +19,18 @@ export function AskBox({ entityType, slug }: { entityType: "protocol" | "applica
     }
   }
   return (
-    <div style={{ marginTop: 24, padding: 12, border: "1px solid #ddd" }}>
-      <strong>Ask these docs</strong>
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask a question…" style={{ flex: 1, padding: 6 }} />
+    <div className="askbox">
+      <span className="label">Ask these docs</span>
+      <div className="row">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && q && !loading && ask()}
+          placeholder="Ask a question…"
+        />
         <button onClick={ask} disabled={loading || !q}>{loading ? "…" : "Ask"}</button>
       </div>
-      {answer && <p style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>{answer}</p>}
+      {answer && <p className="answer">{answer}</p>}
     </div>
   );
 }
