@@ -1,7 +1,8 @@
 import "server-only";
 import { z } from "zod";
-import { generateObject } from "ai";
+import { generateText } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { zodToJsonSchema } from "zod-to-json-schema";
 import type { LlmPort } from "./types";
 
 const stepSchema = z.object({ title: z.string(), content: z.string() });
@@ -101,6 +102,14 @@ export function withRetry(gen: Gen, attempts = 3): Gen {
   };
 }
 
+function extractJson(text: string): unknown {
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/i.exec(text);
+  const body = fenced ? fenced[1] : text;
+  const start = body.indexOf("{");
+  const end = body.lastIndexOf("}");
+  return JSON.parse(start >= 0 && end > start ? body.slice(start, end + 1) : body);
+}
+
 function defaultGen(): Gen {
   // Route through OpenRouter (OpenAI-compatible). Auth: OPENROUTER_API_KEY.
   // GEMINI_MODEL is the OpenRouter model slug, e.g. "google/gemini-2.5-flash-lite".
@@ -110,7 +119,20 @@ function defaultGen(): Gen {
     apiKey: process.env.OPENROUTER_API_KEY ?? "",
   });
   const model = openrouter(process.env.GEMINI_MODEL ?? "google/gemini-2.5-flash-lite");
-  const raw: Gen = (args) => generateObject({ model, schema: args.schema, prompt: args.prompt });
+  // Provider-agnostic structured output: send the JSON Schema in the prompt,
+  // then extract + zod-validate the reply. More reliable across OpenRouter
+  // models than depending on each provider's native structured-output mode.
+  const raw: Gen = async (args) => {
+    const jsonSchema = JSON.stringify(zodToJsonSchema(args.schema));
+    const { text } = await generateText({
+      model,
+      prompt:
+        `${args.prompt}\n\nReturn ONLY a single JSON object — no markdown, no code fences, no commentary — ` +
+        `that strictly conforms to this JSON Schema:\n${jsonSchema}`,
+    });
+    const object = args.schema.parse(extractJson(text));
+    return { object };
+  };
   return withRetry(raw, 3);
 }
 
