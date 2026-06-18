@@ -9,7 +9,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/openai-compatible": "^2.0.51",
+    "@ai-sdk/openai-compatible": "^1.0.41",
     "@mysten-incubation/memwal": "latest",
     "@mysten/sui": "^2.19.0",
     "@prisma/client": "^6.0.0",
