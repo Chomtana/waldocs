@@ -103,11 +103,12 @@ export function withRetry(gen: Gen, attempts = 3): Gen {
 }
 
 function extractJson(text: string): unknown {
-  const fenced = /```(?:json)?\s*([\s\S]*?)```/i.exec(text);
-  const body = fenced ? fenced[1] : text;
-  const start = body.indexOf("{");
-  const end = body.lastIndexOf("}");
-  return JSON.parse(start >= 0 && end > start ? body.slice(start, end + 1) : body);
+  // Slice the outermost { … } — robust to surrounding prose/code fences and to
+  // ```bash/```ts blocks embedded inside the JSON string values (don't fence-strip).
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) throw new Error("no JSON object in model response");
+  return JSON.parse(text.slice(start, end + 1));
 }
 
 function defaultGen(): Gen {
