@@ -8,13 +8,13 @@ export const metadata = {
   description: "Unified developer docs on Walrus Memory.",
 };
 
-// Set the theme before first paint to avoid a flash: stored choice, else the
-// browser's prefers-color-scheme.
-const themeScript = `(function(){try{var t=localStorage.getItem('waldocs-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.dataset.theme=t;}catch(e){}})();`;
+// Default to dark; only honor an explicit stored choice. Runs before first
+// paint so there's no flash. (<html> is pre-set to dark for no-JS / pre-script.)
+const themeScript = `(function(){try{var t=localStorage.getItem('waldocs-theme');if(t==='light'||t==='dark'){document.documentElement.dataset.theme=t;}}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
