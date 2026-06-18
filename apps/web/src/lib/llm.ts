@@ -28,7 +28,9 @@ export function createLlm(gen: Gen): LlmPort {
         schema: structureSchema,
         prompt:
           "Break this app's step-by-step markdown into ordered modular steps (each step = exactly one action; " +
-          "following them top-to-bottom must work). Return a short human title, a 1-3 sentence summary, and the steps.\n\n" +
+          "following them top-to-bottom must work). If the markdown opens with an '## Environment' block listing the " +
+          "protocols/SDKs/versions it was built against, KEEP it verbatim as the FIRST step titled 'Environment' (it is " +
+          "load-bearing version context). Return a short human title, a 1-3 sentence summary, and the steps.\n\n" +
           markdown,
       });
       return object;
@@ -39,8 +41,13 @@ export function createLlm(gen: Gen): LlmPort {
         prompt:
           `You maintain the developer docs for the protocol "${protocolName}". The doc is an ordered list of units, ` +
           `each with a sidebar group, and MUST keep a "GETTING STARTED" group containing units titled "Introduction" and "Getting Started". ` +
+          `The app's first step is usually an "Environment" block naming the SDK package(s) and exact versions it used. ` +
+          `Treat that version info as authoritative: keep the protocol doc's code on the CURRENT, non-deprecated syntax for the ` +
+          `newest SDK version you have seen across apps; if this app uses a newer version whose syntax supersedes a deprecated form ` +
+          `in the current doc, UPDATE the doc to the new syntax and note the version it requires (record a known-good minimum ` +
+          `SDK version in GETTING STARTED). ` +
           `Given the current doc and a new app's experience, return changed=true with the FULL improved doc ONLY if the app genuinely ` +
-          `improves it (new feature coverage, clearer steps); otherwise return changed=false.\n\n` +
+          `improves it (new feature coverage, clearer steps, or a deprecation fix); otherwise return changed=false.\n\n` +
           `CURRENT_DOC:\n${JSON.stringify(currentDoc)}\n\nAPP "${appName}" STEPS:\n${JSON.stringify(appSteps)}`,
       });
       return object;

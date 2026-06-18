@@ -144,9 +144,9 @@ publish_events(id, entity_type, entity_id, document_id, created_at, meta jsonb)
 Vercel AI SDK + Google provider; model id from `GEMINI_MODEL` (`gemini-3.1-flash-lite`). All calls use `generateObject` with a zod schema.
 
 - `structureAppDoc(markdown): Promise<{ name: string; summary: string; steps: { title: string; content: string }[] }>`
-  Breaks the app's markdown into ordered modular steps + a 1–3 sentence summary + a human title.
+  Breaks the app's markdown into ordered modular steps + a 1–3 sentence summary + a human title. The app markdown opens with an `## Environment` block (protocol → SDK package@version, written by the skill); it is preserved verbatim as the first step ("Environment") so version context flows into the merge.
 - `mergeProtocolDoc(args: { protocolName: string; currentDoc: GroupedUnit[]; appName: string; appSteps: { title: string; content: string }[] }): Promise<{ changed: boolean; doc?: GroupedUnit[]; summary?: string; description?: string }>`
-  Returns an updated full protocol doc when the app **improves** it (must keep GETTING STARTED→Introduction/Getting Started), else `{ changed: false }`.
+  Returns an updated full protocol doc when the app **improves** it (must keep GETTING STARTED→Introduction/Getting Started), else `{ changed: false }`. **Version/deprecation-aware:** it treats the app's Environment SDK versions as authoritative — keeps the protocol doc on the newest non-deprecated syntax seen across apps, updates deprecated forms when a newer SDK version supersedes them, and records a known-good minimum SDK version in GETTING STARTED.
 - `curateShowcase(args: { protocolName: string; candidates: { slug: string; name: string; summary: string }[] }): Promise<{ entries: { slug: string; descriptiveTitle: string; simplicityRank: number; clusterKey: string }[] }>`
   Selects notable apps, simplest-first, one per `clusterKey` (drops correlated duplicates), with a short descriptive title.
 - `answerOverContext(args: { question: string; context: { label: string; text: string }[] }): Promise<{ answer: string; usedLabels: string[] }>`
@@ -169,7 +169,7 @@ Vercel AI SDK + Google provider; model id from `GEMINI_MODEL` (`gemini-3.1-flash
     "description": "…", "repoUrl": "https://github.com/chomtana/waldocs",
     "commitHash": "a7d490d"                      // required (git rev-parse HEAD)
   },
-  "markdown": "## Step 1: Install\n…\n## Step 2: …",  // step-by-step app docs
+  "markdown": "## Environment\n- walrus: `@mysten-incubation/memwal@0.0.7`\n…\n## Step 1: Install\n…",  // env block + step-by-step app docs
   "usesProtocols": ["walrus", "sui"]
 }
 ```

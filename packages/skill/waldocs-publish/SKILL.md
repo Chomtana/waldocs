@@ -17,11 +17,29 @@ You publish **this application's** step-by-step documentation to the waldocs bac
    - `commitHash` = `git rev-parse HEAD`.
    - `repoUrl` = the normalized `https://github.com/<author>/<repo>` URL.
 
-2. **Write step-by-step markdown** describing how to build/use this project. Make it **modular**: each step is one self-contained action, and following the steps top-to-bottom must produce a working result. Prefer real commands and code from this repo.
+2. **Detect the protocols + SDKs + exact versions this project actually uses.** For each protocol the project integrates, find the SDK package(s) it imports and the **exact installed version** — read it from the **lockfile first** (`pnpm-lock.yaml` / `package-lock.json` / `yarn.lock` / `Cargo.lock` / `poetry.lock` / `go.sum`), falling back to the manifest range (`package.json`, `Cargo.toml`, `pyproject.toml`, …). Capture language/runtime too (Node/TS, Rust, Python). This is the single most important signal for the backend: it lets the merge step keep the protocol's docs on current, non-deprecated syntax.
 
-3. **Determine `usesProtocols`:** lowercase slugs of the protocols this project integrates (e.g. `["walrus","sui","seal"]`), inferred from dependencies/imports/config. Use simple slugs, not repo paths.
+3. **Write step-by-step markdown** that **begins with an `## Environment` block**, then the modular steps:
 
-4. **POST** the payload (the backend does all structuring/merging):
+   ```markdown
+   ## Environment
+
+   - walrus: `@mysten-incubation/memwal@0.0.7` (Node / TypeScript)
+   - sui: `@mysten/sui@2.19.0`
+   - seal: `@mysten/seal@1.4.0`
+
+   > Exact SDK packages/versions this guide was written and verified against.
+
+   ## Step 1: ...
+   ...
+   ## Step 2: ...
+   ```
+
+   Keep it **modular**: each step is one self-contained action, and following them top-to-bottom must produce a working result. Prefer real commands and code from this repo. If you used a syntax/API that you know replaced an older deprecated one, say so in the relevant step (e.g. "use `SuiJsonRpcClient`; the old `SuiClient` was removed in @mysten/sui 2.x").
+
+4. **Determine `usesProtocols`:** lowercase slugs of the protocols this project integrates (e.g. `["walrus","sui","seal"]`), inferred from dependencies/imports/config. Use simple slugs, not repo paths. These must match the protocols named in your `## Environment` block.
+
+5. **POST** the payload (the backend does all structuring/merging):
 
 ```bash
 curl -sS -X POST "${WALDOCS_API_URL:-http://localhost:3000}/api/publish" \
@@ -36,10 +54,10 @@ curl -sS -X POST "${WALDOCS_API_URL:-http://localhost:3000}/api/publish" \
     "repoUrl": "https://github.com/<author>/<repo>",
     "commitHash": "<git rev-parse HEAD>"
   },
-  "markdown": "## Step 1: ...\n...\n## Step 2: ...\n...",
+  "markdown": "## Environment\n\n- walrus: `@mysten-incubation/memwal@0.0.7` (Node / TypeScript)\n\n> Exact SDK versions this guide was verified against.\n\n## Step 1: ...\n...\n## Step 2: ...\n...",
   "usesProtocols": ["walrus"]
 }
 JSON
 ```
 
-5. **Report** the response: show `url`, `version`, the number of `blobIds` published, and `mergedProtocols` (which protocol docs your contribution improved). On a 400, show the validation `issues` and fix the payload (most often a bad `slug` — it must be `author/repo`).
+6. **Report** the response: show `url`, `version`, the number of `blobIds` published, and `mergedProtocols` (which protocol docs your contribution improved). On a 400, show the validation `issues` and fix the payload (most often a bad `slug` — it must be `author/repo`).
