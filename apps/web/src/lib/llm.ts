@@ -76,13 +76,30 @@ export function createLlm(gen: Gen): LlmPort {
   };
 }
 
+// Weaker models intermittently fail generateObject's schema validation
+// ("No object generated"). Retry the call up to `attempts` times before giving up.
+export function withRetry(gen: Gen, attempts = 3): Gen {
+  return async (args) => {
+    let lastErr: unknown;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await gen(args);
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr;
+  };
+}
+
 function defaultGen(): Gen {
   // Route through Vercel AI Gateway (auth: AI_GATEWAY_API_KEY, or Vercel OIDC on deploy).
   // GEMINI_MODEL may be a bare model id (we prefix "google/") or a full
   // "<creator>/<model>" gateway slug (used verbatim).
   const m = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
   const model = gateway(m.includes("/") ? m : `google/${m}`);
-  return (args) => generateObject({ model, schema: args.schema, prompt: args.prompt });
+  const raw: Gen = (args) => generateObject({ model, schema: args.schema, prompt: args.prompt });
+  return withRetry(raw, 3);
 }
 
 let singleton: LlmPort | null = null;

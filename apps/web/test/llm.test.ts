@@ -35,3 +35,22 @@ describe("llm wrapper", () => {
     expect(out).toEqual({ answer: "the answer", usedLabels: ["walrus"] });
   });
 });
+
+import { withRetry } from "@/lib/llm";
+
+describe("withRetry", () => {
+  it("retries up to N times and succeeds", async () => {
+    let calls = 0;
+    const flaky = async () => { calls++; if (calls < 3) throw new Error("No object generated"); return { object: { ok: true } }; };
+    const g = withRetry(flaky as never, 3);
+    const r = await g({ schema: {} as never, prompt: "x" });
+    expect((r as { object: { ok: boolean } }).object.ok).toBe(true);
+    expect(calls).toBe(3);
+  });
+  it("throws the last error after exhausting attempts", async () => {
+    let calls = 0;
+    const always = async () => { calls++; throw new Error("No object generated"); };
+    await expect(withRetry(always as never, 3)({ schema: {} as never, prompt: "x" })).rejects.toThrow(/No object generated/);
+    expect(calls).toBe(3);
+  });
+});
