@@ -218,8 +218,8 @@ Vercel AI SDK + Google provider; model id from `GEMINI_MODEL` (`gemini-3.1-flash
 ## 9. Walrus Memory + env
 
 - SDK `@mysten-incubation/memwal` wrapped in `lib/memwal.ts` (`MemwalPort` = `remember` + `recall` + `health`; no `ask`).
-- Gemini in `lib/llm.ts` (`LlmPort`) via `@ai-sdk/google` + `ai`.
-- Env (server-only): `MEMWAL_PRIVATE_KEY`, `MEMWAL_ACCOUNT_ID`, `MEMWAL_SERVER_URL=https://relayer-staging.memory.walrus.xyz`, `MEMWAL_PACKAGE_ID`/`MEMWAL_REGISTRY_ID` (testnet), `DATABASE_URL`, `GOOGLE_GENERATIVE_AI_API_KEY`, `GEMINI_MODEL=gemini-3.1-flash-lite`, `OWNER_SUI_KEY` (seed only).
+- Gemini in `lib/llm.ts` (`LlmPort`) via the **Vercel AI Gateway** (`ai` SDK 5; `gateway("google/<model>")`).
+- Env (server-only): `MEMWAL_PRIVATE_KEY`, `MEMWAL_ACCOUNT_ID`, `MEMWAL_SERVER_URL=https://relayer-staging.memory.walrus.xyz`, `MEMWAL_PACKAGE_ID`/`MEMWAL_REGISTRY_ID` (testnet), `DATABASE_URL`, `AI_GATEWAY_API_KEY` (or Vercel OIDC on deploy), `GEMINI_MODEL=gemini-3.1-flash-lite`, `OWNER_SUI_KEY` (seed only).
 - One-time bootstrap: `scripts/seed-account.ts` (testnet).
 - Rendering uses Postgres `content_cache`; retrieval uses `recall`; synthesis uses Gemini; verifiability from persisted `walrusBlobId`s.
 
@@ -269,4 +269,4 @@ waldocs/
 - **Append-only Walrus** — stale memories persist across versions/commits; `_toc` may hold multiple entries per app (dedup by slug on recall, prefer latest).
 - **Open publish endpoint** — soft rate limit + `publish_events`.
 - **`MystenLabs/MemWal` vs `CommandOSSLabs/MemWal`** ambiguity (guide §13.16) — confirm canonical npm source.
-- **Gemini model id** `gemini-3.1-flash-lite` taken as given — confirm exact id/availability in `@ai-sdk/google` before pinning.
+- **Gemini model id** `gemini-3.1-flash-lite` taken as given — confirm the gateway slug `google/gemini-3.1-flash-lite` resolves before pinning.

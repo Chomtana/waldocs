@@ -1,7 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { generateObject } from "ai";
-import { google } from "@ai-sdk/google";
+import { generateObject, gateway } from "ai";
 import type { LlmPort } from "./types";
 
 const stepSchema = z.object({ title: z.string(), content: z.string() });
@@ -71,7 +70,9 @@ export function createLlm(gen: Gen): LlmPort {
 }
 
 function defaultGen(): Gen {
-  const model = google(process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite");
+  // Route through Vercel AI Gateway (auth: AI_GATEWAY_API_KEY, or Vercel OIDC on deploy).
+  // GEMINI_MODEL is the bare Google model id; the gateway expects "google/<model>".
+  const model = gateway(`google/${process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite"}`);
   return (args) => generateObject({ model, schema: args.schema, prompt: args.prompt });
 }
 

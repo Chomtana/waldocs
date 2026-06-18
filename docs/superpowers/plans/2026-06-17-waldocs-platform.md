@@ -6,12 +6,12 @@
 
 **Architecture:** Next.js (App Router) hosts APIs + UI. `POST /api/publish` runs a Gemini pipeline (structure app doc → for each used protocol, whole-doc merge with improve-or-keep → curate showcase), writing modular units to Walrus Memory (one namespace per entity-version) and caching structure/plaintext in Postgres. Chat/ask are Gemini RAG over Walrus `recall`. All side-effecting collaborators are behind injectable ports (`MemwalPort`, `RepoPort`, `LlmPort`) so logic is unit-tested with fakes (no live Gemini/Walrus in unit tests).
 
-**Tech Stack:** TypeScript, Next.js 15 (App Router), PostgreSQL + Prisma, zod, `@mysten-incubation/memwal`, `ai` + `@ai-sdk/google` (Gemini), vitest, pnpm.
+**Tech Stack:** TypeScript, Next.js 15 (App Router), PostgreSQL + Prisma, zod, `@mysten-incubation/memwal`, `ai` (SDK 5; Vercel AI Gateway → Gemini), vitest, pnpm.
 
 ## Global Constraints
 
 - **Network: testnet only.** MemWal **staging** relayer `https://relayer-staging.memory.walrus.xyz`; `suiNetwork: "testnet"`; testnet IDs `MEMWAL_PACKAGE_ID=0xcf6ad755a1cdff7217865c796778fabe5aa399cb0cf2eba986f4b582047229c6`, `MEMWAL_REGISTRY_ID=0xe80f2feec1c139616a86c9f71210152e2a7ca552b20841f2e192f99f75864437`.
-- **Gemini model id from `GEMINI_MODEL`** (default `gemini-3.1-flash-lite`) via `@ai-sdk/google`. Confirm the exact id is available before pinning.
+- **Gemini model id from `GEMINI_MODEL`** (default `gemini-3.1-flash-lite`) routed via the **Vercel AI Gateway** as `google/<GEMINI_MODEL>` (`ai` SDK 5, auth `AI_GATEWAY_API_KEY`/OIDC). Confirm the gateway slug resolves before pinning.
 - **Publish input = app step-by-step markdown only.** `entity.type` is always `application`.
 - **Protocols are pure merge targets** — stub on first reference; content synthesized by `mergeProtocolDoc`. The synthesized doc always keeps a `GETTING STARTED` group with units `Introduction` + `Getting Started`.
 - **Namespaces:** protocol `proto.<slug>`; app `<author>/<repo>/<commit>`; reserved `_toc`.
@@ -127,8 +127,7 @@ volumes: { pgdata: {} }
     "react-dom": "^19.0.0",
     "@prisma/client": "^6.0.0",
     "zod": "^3.23.0",
-    "ai": "^4.0.0",
-    "@ai-sdk/google": "^1.0.0",
+    "ai": "^5.0.0",
     "@mysten-incubation/memwal": "latest"
   },
   "devDependencies": {
@@ -843,7 +842,7 @@ git commit -m "feat: add MemWal wrapper behind MemwalPort"
 - Test: `apps/web/test/llm.test.ts`
 
 **Interfaces:**
-- Consumes: `LlmPort` (Task 3), `ai`'s `generateObject`, `@ai-sdk/google`.
+- Consumes: `LlmPort` (Task 3), `ai`'s `generateObject` + `gateway` (Vercel AI Gateway).
 - Produces: `createLlm(generate): LlmPort` (injects a `generateObject`-like fn for testing), `getLlm(): LlmPort`.
 
 - [ ] **Step 1: Write the failing test (inject a fake generator)**
@@ -893,8 +892,7 @@ Expected: FAIL ("Cannot find module '@/lib/llm'").
 ```ts
 import "server-only";
 import { z } from "zod";
-import { generateObject } from "ai";
-import { google } from "@ai-sdk/google";
+import { generateObject, gateway } from "ai";
 import type { LlmPort } from "./types";
 
 const stepSchema = z.object({ title: z.string(), content: z.string() });
@@ -964,7 +962,7 @@ export function createLlm(gen: Gen): LlmPort {
 }
 
 function defaultGen(): Gen {
-  const model = google(process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite");
+  const model = gateway(`google/${process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite"}`);
   return (args) => generateObject({ model, schema: args.schema, prompt: args.prompt });
 }
 
