@@ -128,9 +128,18 @@ a:hover { text-decoration: underline; }
   background: var(--brand-soft); border-radius: 0 6px 6px 0; color: var(--text-soft);
 }
 .prose a { font-weight: 500; }
-.prose table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 14px; }
+.prose table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 14px; display: block; overflow-x: auto; }
 .prose th, .prose td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
-.prose th { background: var(--bg-soft); }
+.prose th { background: var(--bg-soft); font-weight: 600; }
+.prose tr:nth-child(2n) td { background: var(--bg-soft); }
+.prose hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+.prose img { max-width: 100%; border-radius: 8px; }
+.prose del { color: var(--text-mute); }
+.prose kbd { font-family: monospace; font-size: 0.85em; background: var(--bg-mute); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
+/* GFM task lists */
+.prose .contains-task-list { padding-left: 0; list-style: none; }
+.prose .task-list-item { list-style: none; }
+.prose .task-list-item input { margin-right: 8px; }
 
 /* inline code */
 .prose :not(pre) > code {

@@ -2,6 +2,9 @@ import { defineConfig } from "vitest/config";
 import path from "node:path";
 export default defineConfig({
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
+  // Use the automatic JSX runtime so .tsx components (e.g. Markdown) compile
+  // without a React import (matches Next's setup).
+  esbuild: { jsx: "automatic" },
   test: {
     environment: "node",
     include: ["test/**/*.test.ts"],
