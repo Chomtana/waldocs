@@ -195,3 +195,37 @@ a:hover { text-decoration: underline; }
 :root[data-theme="dark"] .hljs-variable, :root[data-theme="dark"] .hljs-attr, :root[data-theme="dark"] .hljs-attribute, :root[data-theme="dark"] .hljs-template-tag { color: #ffa657; }
 :root[data-theme="dark"] .hljs-number, :root[data-theme="dark"] .hljs-literal, :root[data-theme="dark"] .hljs-type, :root[data-theme="dark"] .hljs-params { color: #79c0ff; }
 :root[data-theme="dark"] .hljs-symbol, :root[data-theme="dark"] .hljs-bullet, :root[data-theme="dark"] .hljs-link, :root[data-theme="dark"] .hljs-meta, :root[data-theme="dark"] .hljs-selector-id, :root[data-theme="dark"] .hljs-selector-class { color: #7ee787; }
+
+/* ── navigation progress bar ─────────────────────────────────────────────── */
+.nav-progress {
+  position: fixed; top: 0; left: 0; height: 2px; width: 0;
+  background: var(--brand); z-index: 100; opacity: 0;
+  pointer-events: none; border-radius: 0 2px 2px 0;
+  box-shadow: 0 0 8px var(--brand);
+}
+.nav-progress[data-state="loading"] {
+  opacity: 1; width: 90%;
+  transition: width 10s cubic-bezier(0.1, 0.7, 0.3, 0.95);
+}
+.nav-progress[data-state="done"] {
+  opacity: 0; width: 100%;
+  transition: width 0.2s ease, opacity 0.3s ease 0.2s;
+}
+
+/* ── skeleton placeholders (route loading.tsx) ───────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-soft) 25%, var(--bg-mute) 37%, var(--bg-soft) 63%);
+  background-size: 400% 100%;
+  border-radius: 6px;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+.skeleton-line { height: 14px; margin: 10px 0; }
+.skeleton-title { height: 32px; width: 45%; margin: 0 0 20px; }
+.skeleton-block { height: 120px; margin: 16px 0; }
+@media (prefers-reduced-motion: reduce) {
+  .nav-progress, .skeleton { transition: none; animation: none; }
+}
