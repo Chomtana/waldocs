@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import "./globals.css";
 import { ThemeToggle } from "@/app/_components/ThemeToggle";
+import { NavProgress } from "@/app/_components/NavProgress";
 
 export const metadata = {
   title: "waldocs",
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>
+        <NavProgress />
         <nav className="nav">
           <Link href="/" className="brand">
             wal<span className="dot">docs</span>
