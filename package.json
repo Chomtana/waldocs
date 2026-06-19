@@ -3,7 +3,10 @@
   "private": true,
   "scripts": {
     "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "start": "pnpm --filter web start",
     "test": "pnpm --filter web test",
+    "db:deploy": "pnpm --filter web exec prisma migrate deploy",
     "seed:account": "tsx --env-file=apps/web/.env apps/web/scripts/seed-account.ts"
   },
   "devDependencies": { "tsx": "^4.19.0" }
