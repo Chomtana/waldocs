@@ -41,12 +41,15 @@ export interface MemwalPort {
 
 export interface LlmPort {
   structureAppDoc(markdown: string): Promise<{ name: string; summary: string; steps: Step[] }>;
+  // One stable sentence stating what the protocol IS (for the docs index card) —
+  // owned separately from mergeProtocolDoc so it is never a changelog and always runs.
+  describeProtocol(args: { protocolName: string; doc: GroupedUnit[] }): Promise<{ description: string }>;
   mergeProtocolDoc(args: {
     protocolName: string;
     currentDoc: GroupedUnit[];
     appName: string;
     appSteps: Step[];
-  }): Promise<{ changed: boolean; doc?: GroupedUnit[]; summary?: string; description?: string }>;
+  }): Promise<{ changed: boolean; doc?: GroupedUnit[]; summary?: string }>;
   curateShowcase(args: {
     protocolName: string;
     candidates: { slug: string; name: string; summary: string }[];

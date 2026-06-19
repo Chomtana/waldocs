@@ -59,6 +59,12 @@ export async function publishApp(
     const currentDoc = await repo.latestProtocolUnits(protocolId);
     const merge = await llm.mergeProtocolDoc({ protocolName: protoSlug, currentDoc, appName, appSteps: structured.steps });
 
+    // "What this protocol is" — a stable one-liner for the docs index, owned by a
+    // dedicated call (never the merge's changelog) and refreshed on every publish.
+    const described = merge.changed && merge.doc ? merge.doc : currentDoc;
+    const { description } = await llm.describeProtocol({ protocolName: protoSlug, doc: described });
+    if (description.trim()) await repo.setProtocolDescription(protocolId, description.trim());
+
     if (merge.changed) {
       if (!merge.doc || merge.doc.length === 0) {
         throw new Error(`mergeProtocolDoc returned changed=true but no doc for protocol "${protoSlug}"`);
@@ -75,7 +81,6 @@ export async function publishApp(
         await repo.insertUnit({ documentId: pDocId, ord: i, groupTitle: u.group, title: u.title, contentCache: u.content, walrusBlobId: null, jobId, namespace: pNs });
         unitsQueued++;
       }
-      if (merge.description) await repo.setProtocolDescription(protocolId, merge.description);
       const pTocLine = encodeTocHeader("protocol", protoSlug, protoSlug, merge.summary ?? "");
       await memwal.remember(pTocLine, "_toc");
       unitsQueued++;

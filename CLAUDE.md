@@ -66,7 +66,7 @@ Publishing is **app-only**. For an app's submitted markdown:
 - Uses **`generateText` + JSON-Schema-in-prompt + `extractJson` + zod-validate**, NOT `generateObject` — OpenRouter/Gemini didn't reliably honor native structured-output mode.
 - `extractJson` slices the **outermost `{ … }`** (don't fence-strip — doc content is full of ```code blocks``` that live inside the JSON strings).
 - `withRetry(gen, 3)` wraps the real generator (weak models intermittently fail schema).
-- Model comes from `GEMINI_MODEL` (an OpenRouter slug, e.g. `google/gemini-3.1-flash-lite`); auth `OPENROUTER_API_KEY`.
+- **Provider is selected at runtime in `buildModel()`:** if `ANTHROPIC_API_KEY` is set, it uses Claude (`CLAUDE_MODEL`, default `claude-haiku-4-5-20251001`) via `@ai-sdk/anthropic` and **ignores OpenRouter**; otherwise it falls back to OpenRouter — model from `GEMINI_MODEL` (an OpenRouter slug, e.g. `google/gemini-3.1-flash-lite`), auth `OPENROUTER_API_KEY`. Both go through the same `generateText` + JSON-Schema-in-prompt path, so the switch only swaps which `model` is built.
 - The prompts encode product rules: every doc unit **must** contain a runnable code/command example with realistic **mock values**, and **secrets** (private keys, API keys, account ids) must be **redacted** to a truncated form like `0x28bd…508b`. Keep these rules in sync between `lib/llm.ts` and `packages/skill/waldocs-publish/SKILL.md`.
 
 ### Walrus Memory / Sui gotchas (`lib/memwal.ts`, `apps/web/scripts/seed-account.ts`)

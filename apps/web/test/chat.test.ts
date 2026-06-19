@@ -16,6 +16,7 @@ function memwalWith(tocHits: { text: string }[], perNs: Record<string, string[]>
 
 const llm: LlmPort = {
   async structureAppDoc() { return { name: "", summary: "", steps: [] }; },
+  async describeProtocol() { return { description: "" }; },
   async mergeProtocolDoc() { return { changed: false }; },
   async curateShowcase() { return { entries: [] }; },
   answerOverContext: vi.fn(async ({ context }) => ({ answer: `from ${context.length} ctx`, usedLabels: context.map((c: { label: string }) => c.label) })),

@@ -3,7 +3,7 @@ import { publishApp, protocolNamespace, appNamespace, parseSlug } from "@/lib/pu
 import type { MemwalPort, RepoPort, LlmPort, PublishInput, GroupedUnit } from "@/lib/types";
 
 function fakes(mergeChanged: boolean) {
-  const log = { remembered: [] as { text: string; ns: string }[], showcaseFor: [] as string[], protoVersions: 0 };
+  const log = { remembered: [] as { text: string; ns: string }[], showcaseFor: [] as string[], protoVersions: 0, describedFor: [] as string[], descSet: [] as string[] };
   let job = 0;
   const memwal: MemwalPort = {
     async remember(text, ns) { log.remembered.push({ text, ns }); return { jobId: `job-${++job}` }; },
@@ -20,7 +20,7 @@ function fakes(mergeChanged: boolean) {
     async insertUnit() {},
     async pendingUnits() { return []; },
     async setUnitBlobId() {},
-    async setProtocolDescription() {},
+    async setProtocolDescription(_id, description) { log.descSet.push(description); },
     async latestProtocolUnits() { return [] as GroupedUnit[]; },
     async linkedApps() { return [{ id: "app-1", slug: "chomtana/waldocs", name: "waldocs", summary: "s" }]; },
     async replaceShowcase(id) { log.showcaseFor.push(id); },
@@ -28,9 +28,10 @@ function fakes(mergeChanged: boolean) {
   };
   const llm: LlmPort = {
     async structureAppDoc() { return { name: "waldocs", summary: "Docs.", steps: [{ title: "Step 1", content: "a" }, { title: "Step 2", content: "b" }] }; },
+    async describeProtocol({ protocolName }) { log.describedFor.push(protocolName); return { description: `${protocolName} is a protocol.` }; },
     async mergeProtocolDoc() {
       return mergeChanged
-        ? { changed: true, doc: [{ group: "GETTING STARTED", title: "Introduction", content: "i" }], summary: "ps", description: "pd" }
+        ? { changed: true, doc: [{ group: "GETTING STARTED", title: "Introduction", content: "i" }], summary: "ps" }
         : { changed: false };
     },
     async curateShowcase() { return { entries: [{ slug: "chomtana/waldocs", descriptiveTitle: "Docs app", simplicityRank: 0, clusterKey: "k" }] }; },
@@ -69,10 +70,13 @@ describe("publishApp", () => {
     expect(log.showcaseFor).toEqual(["proto-1"]);
   });
 
-  it("when merge is unchanged, writes NO protocol document", async () => {
+  it("when merge is unchanged, writes NO protocol document but still refreshes the description", async () => {
     const { memwal, repo, llm, log } = fakes(false);
     await publishApp(input, { repo, memwal, llm, baseUrl: "http://h" });
     expect(log.protoVersions).toBe(0);
+    // describeProtocol runs independently of the merge, so the "what is this" card never goes stale
+    expect(log.describedFor).toEqual(["walrus"]);
+    expect(log.descSet).toEqual(["walrus is a protocol."]);
   });
 
   it("when merge improves, writes a protocol document + curates showcase", async () => {
