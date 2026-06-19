@@ -71,7 +71,8 @@ model DocUnit {
   groupTitle   String?
   title        String
   contentCache String
-  walrusBlobId String
+  walrusBlobId String?  // null until the relayer certifies the write (filled by /api/reconcile)
+  jobId        String?  // memwal remember job id, used to resolve the blob id later
   namespace    String
   createdAt    DateTime @default(now())
 }

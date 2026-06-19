@@ -5,7 +5,7 @@ import { repo } from "@/lib/repo";
 import { getMemwal } from "@/lib/memwal";
 import { getLlm } from "@/lib/llm";
 
-export const maxDuration = 120; // publish runs several Gemini + Walrus calls
+export const maxDuration = 300; // publish runs several Gemini + slow Walrus writes (Vercel Pro max)
 
 export async function POST(req: Request) {
   let body: unknown;

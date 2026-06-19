@@ -32,11 +32,24 @@ describe("repo", () => {
   it("reads latest protocol units grouped + ordered", async () => {
     const p = await repo.upsertProtocolBySlug({ slug: "walrus", name: "Walrus", namespace: "proto.walrus" });
     const d = await repo.createDocument({ entityType: "protocol", entityId: p.id, version: 1, namespace: "proto.walrus", title: "Walrus", summary: "s" });
-    await repo.insertUnit({ documentId: d.id, ord: 1, groupTitle: "GETTING STARTED", title: "Getting Started", contentCache: "g", walrusBlobId: "b2", namespace: "proto.walrus" });
-    await repo.insertUnit({ documentId: d.id, ord: 0, groupTitle: "GETTING STARTED", title: "Introduction", contentCache: "i", walrusBlobId: "b1", namespace: "proto.walrus" });
+    await repo.insertUnit({ documentId: d.id, ord: 1, groupTitle: "GETTING STARTED", title: "Getting Started", contentCache: "g", walrusBlobId: "b2", jobId: null, namespace: "proto.walrus" });
+    await repo.insertUnit({ documentId: d.id, ord: 0, groupTitle: "GETTING STARTED", title: "Introduction", contentCache: "i", walrusBlobId: "b1", jobId: null, namespace: "proto.walrus" });
     const units = await repo.latestProtocolUnits(p.id);
     expect(units.map((u) => u.title)).toEqual(["Introduction", "Getting Started"]);
     expect(units[0].group).toBe("GETTING STARTED");
+  });
+
+  it("lists pending units (jobId set, no blob) and reconciles them", async () => {
+    const p = await repo.upsertProtocolBySlug({ slug: "walrus", name: "Walrus", namespace: "proto.walrus" });
+    const d = await repo.createDocument({ entityType: "protocol", entityId: p.id, version: 1, namespace: "proto.walrus", title: "Walrus", summary: "s" });
+    await repo.insertUnit({ documentId: d.id, ord: 0, groupTitle: null, title: "U1", contentCache: "c", walrusBlobId: null, jobId: "job-1", namespace: "proto.walrus" });
+    await repo.insertUnit({ documentId: d.id, ord: 1, groupTitle: null, title: "U2", contentCache: "c", walrusBlobId: "already", jobId: "job-2", namespace: "proto.walrus" });
+
+    const pending = await repo.pendingUnits(10);
+    expect(pending.map((u) => u.jobId)).toEqual(["job-1"]); // U2 already has a blob
+
+    await repo.setUnitBlobId(pending[0].id, "resolved-blob");
+    expect(await repo.pendingUnits(10)).toHaveLength(0);
   });
 
   it("replaces showcase entries", async () => {

@@ -4,9 +4,10 @@ import type { MemwalPort, RepoPort, LlmPort, PublishInput, GroupedUnit } from "@
 
 function fakes(mergeChanged: boolean) {
   const log = { remembered: [] as { text: string; ns: string }[], showcaseFor: [] as string[], protoVersions: 0 };
-  let blob = 0;
+  let job = 0;
   const memwal: MemwalPort = {
-    async remember(text, ns) { log.remembered.push({ text, ns }); return { blobId: `blob-${++blob}` }; },
+    async remember(text, ns) { log.remembered.push({ text, ns }); return { jobId: `job-${++job}` }; },
+    async resolveJob() { return null; },
     async recall() { return { results: [] }; },
     async health() { return { status: "ok" }; },
   };
@@ -17,7 +18,8 @@ function fakes(mergeChanged: boolean) {
     async nextVersion() { return 1; },
     async createDocument(a) { if (a.entityType === "protocol") log.protoVersions++; return { id: `doc-${a.entityType}` }; },
     async insertUnit() {},
-    async setEntityToc() {},
+    async pendingUnits() { return []; },
+    async setUnitBlobId() {},
     async setProtocolDescription() {},
     async latestProtocolUnits() { return [] as GroupedUnit[]; },
     async linkedApps() { return [{ id: "app-1", slug: "chomtana/waldocs", name: "waldocs", summary: "s" }]; },
@@ -61,7 +63,7 @@ describe("publishApp", () => {
     expect(log.remembered.slice(0, 2).map((r) => r.ns)).toEqual([appNs, appNs]);
     expect(log.remembered[2].ns).toBe("_toc");
     expect(log.remembered[2].text.startsWith("[application:chomtana/waldocs]")).toBe(true);
-    expect(res.blobIds).toEqual(["blob-1", "blob-2"]);
+    expect(res.unitsQueued).toBe(3); // 2 steps + app _toc (merge unchanged → no protocol writes)
     expect(res.url).toBe("http://h/app/chomtana/waldocs");
     expect(res.mergedProtocols).toEqual([{ slug: "walrus", changed: false }]);
     expect(log.showcaseFor).toEqual(["proto-1"]);

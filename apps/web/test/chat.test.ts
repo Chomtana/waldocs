@@ -4,7 +4,8 @@ import type { MemwalPort, LlmPort } from "@/lib/types";
 
 function memwalWith(tocHits: { text: string }[], perNs: Record<string, string[]>): MemwalPort {
   return {
-    async remember() { return { blobId: "x" }; },
+    async remember() { return { jobId: "job-x" }; },
+    async resolveJob() { return null; },
     async recall(_q, ns) {
       if (ns === "_toc") return { results: tocHits.map((t, i) => ({ blobId: `t${i}`, text: t.text, distance: 0.1 })) };
       return { results: (perNs[ns] ?? []).map((text, i) => ({ blobId: `${ns}-${i}`, text, distance: 0.2 })) };

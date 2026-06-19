@@ -15,12 +15,12 @@ export async function getProtocol(slug: string) {
   const units = latest ? await db.docUnit.findMany({ where: { documentId: latest.id }, orderBy: { ord: "asc" } }) : [];
 
   // group by groupTitle preserving first-seen order
-  const sections: { group: string; units: { title: string; content: string; blobId: string }[] }[] = [];
+  const sections: { group: string; units: { id: string; title: string; content: string; blobId: string | null }[] }[] = [];
   for (const u of units) {
     const group = u.groupTitle ?? "DOCS";
     let sec = sections.find((s) => s.group === group);
     if (!sec) { sec = { group, units: [] }; sections.push(sec); }
-    sec.units.push({ title: u.title, content: u.contentCache, blobId: u.walrusBlobId });
+    sec.units.push({ id: u.id, title: u.title, content: u.contentCache, blobId: u.walrusBlobId });
   }
 
   const showcaseRows = await db.showcaseEntry.findMany({
@@ -42,7 +42,7 @@ export async function getApplication(author: string, repo: string) {
   const links = await db.applicationProtocol.findMany({ where: { applicationId: app.id }, include: { protocol: true } });
   return {
     slug, name: app.name, description: app.description,
-    steps: units.map((u) => ({ title: u.title, content: u.contentCache, blobId: u.walrusBlobId })),
+    steps: units.map((u) => ({ id: u.id, title: u.title, content: u.contentCache, blobId: u.walrusBlobId })),
     protocols: links.map((l) => ({ slug: l.protocol.slug, name: l.protocol.name })),
   };
 }

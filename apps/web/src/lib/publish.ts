@@ -35,17 +35,20 @@ export async function publishApp(
     namespace: ns, title: appName, summary: structured.summary, sourceMarkdown: markdown,
   });
 
-  const blobIds: string[] = [];
+  // Walrus writes are non-blocking: enqueue (remember -> jobId) and store the
+  // content immediately. The relayer certifies in the background; /api/reconcile
+  // fills walrusBlobId from the jobId later. Keeps publish within serverless limits.
+  let unitsQueued = 0;
   for (let i = 0; i < structured.steps.length; i++) {
     const s = structured.steps[i];
-    const { blobId } = await memwal.remember(s.content, ns);
-    await repo.insertUnit({ documentId, ord: i, groupTitle: null, title: s.title, contentCache: s.content, walrusBlobId: blobId, namespace: ns });
-    blobIds.push(blobId);
+    const { jobId } = await memwal.remember(s.content, ns);
+    await repo.insertUnit({ documentId, ord: i, groupTitle: null, title: s.title, contentCache: s.content, walrusBlobId: null, jobId, namespace: ns });
+    unitsQueued++;
   }
 
   const appTocLine = encodeTocHeader("application", entity.slug, appName, structured.summary);
-  const { blobId: tocBlobId } = await memwal.remember(appTocLine, "_toc");
-  await repo.setEntityToc("application", appId, tocBlobId);
+  await memwal.remember(appTocLine, "_toc");
+  unitsQueued++;
 
   // 3) merge into each used protocol
   const mergedProtocols: { slug: string; changed: boolean }[] = [];
@@ -68,13 +71,14 @@ export async function publishApp(
       });
       for (let i = 0; i < merge.doc.length; i++) {
         const u = merge.doc[i];
-        const { blobId } = await memwal.remember(u.content, pNs);
-        await repo.insertUnit({ documentId: pDocId, ord: i, groupTitle: u.group, title: u.title, contentCache: u.content, walrusBlobId: blobId, namespace: pNs });
+        const { jobId } = await memwal.remember(u.content, pNs);
+        await repo.insertUnit({ documentId: pDocId, ord: i, groupTitle: u.group, title: u.title, contentCache: u.content, walrusBlobId: null, jobId, namespace: pNs });
+        unitsQueued++;
       }
       if (merge.description) await repo.setProtocolDescription(protocolId, merge.description);
       const pTocLine = encodeTocHeader("protocol", protoSlug, protoSlug, merge.summary ?? "");
-      const { blobId: pToc } = await memwal.remember(pTocLine, "_toc");
-      await repo.setEntityToc("protocol", protocolId, pToc);
+      await memwal.remember(pTocLine, "_toc");
+      unitsQueued++;
     }
     mergedProtocols.push({ slug: protoSlug, changed: Boolean(merge.changed) });
 
@@ -86,5 +90,5 @@ export async function publishApp(
 
   await repo.insertPublishEvent({ entityType: "application", entityId: appId, documentId, meta: { repoUrl: entity.repoUrl, steps: structured.steps.length } });
 
-  return { url: `${baseUrl}/app/${entity.slug}`, slug: entity.slug, documentId, version, namespace: ns, blobIds, tocBlobId, mergedProtocols };
+  return { url: `${baseUrl}/app/${entity.slug}`, slug: entity.slug, documentId, version, namespace: ns, unitsQueued, mergedProtocols };
 }

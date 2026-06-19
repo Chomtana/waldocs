@@ -60,4 +60,4 @@ curl -sS -X POST "${WALDOCS_API_URL:-http://localhost:3000}/api/publish" \
 JSON
 ```
 
-6. **Report** the response: show `url`, `version`, the number of `blobIds` published, and `mergedProtocols` (which protocol docs your contribution improved). On a 400, show the validation `issues` and fix the payload (most often a bad `slug` — it must be `author/repo`).
+6. **Report** the response: show `url`, `version`, `unitsQueued` (memory writes enqueued — they certify on Walrus in the background), and `mergedProtocols` (which protocol docs your contribution improved). On a 400, show the validation `issues` and fix the payload (most often a bad `slug` — it must be `author/repo`).

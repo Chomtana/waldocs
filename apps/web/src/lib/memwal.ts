@@ -2,10 +2,17 @@ import "server-only";
 import { MemWal } from "@mysten-incubation/memwal";
 import type { MemwalPort } from "./types";
 
-const REMEMBER_TIMEOUT_MS = 60_000;
+const RESOLVE_TIMEOUT_MS = 12_000; // how long resolveJob waits for a single job
+const RESOLVE_POLL_MS = 1_500;
 
 interface SdkClient {
-  rememberAndWait(text: string, namespace?: string, opts?: { timeoutMs?: number }): Promise<{ blob_id: string }>;
+  // non-blocking: enqueue and return a job id immediately
+  remember(text: string, namespace?: string): Promise<{ job_id: string; status: string }>;
+  // resolve a previously enqueued job to its certified blob id
+  waitForRememberJob(
+    jobId: string,
+    opts?: { timeoutMs?: number; pollIntervalMs?: number },
+  ): Promise<{ blob_id: string }>;
   recall(params: { query: string; namespace?: string; limit?: number; maxDistance?: number }): Promise<{
     results: { blob_id: string; text: string; distance: number }[];
     total: number;
@@ -16,8 +23,16 @@ interface SdkClient {
 export function createMemwal(client: SdkClient): MemwalPort {
   return {
     async remember(text, namespace) {
-      const r = await client.rememberAndWait(text, namespace, { timeoutMs: REMEMBER_TIMEOUT_MS });
-      return { blobId: r.blob_id };
+      const r = await client.remember(text, namespace);
+      return { jobId: r.job_id };
+    },
+    async resolveJob(jobId) {
+      try {
+        const r = await client.waitForRememberJob(jobId, { timeoutMs: RESOLVE_TIMEOUT_MS, pollIntervalMs: RESOLVE_POLL_MS });
+        return { blobId: r.blob_id };
+      } catch {
+        return null; // still pending or failed — reconcile will retry
+      }
     },
     async recall(query, namespace, opts) {
       const r = await client.recall({ query, namespace, limit: opts?.limit, maxDistance: opts?.maxDistance });
@@ -30,7 +45,8 @@ export function createMemwal(client: SdkClient): MemwalPort {
 }
 
 // The staging relayer rate-limits per delegate key (~30 weighted req/min) and
-// returns 429 with `retry_after_seconds`. Space calls out and back off on 429.
+// returns 429 with `retry_after_seconds`. Even non-blocking enqueues count, so
+// space them out and back off on 429.
 const MIN_GAP_MS = 2_200; // ≈27 req/min
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 let chain: Promise<unknown> = Promise.resolve();
@@ -71,10 +87,12 @@ function buildClient(): SdkClient {
     accountId: process.env.MEMWAL_ACCOUNT_ID!,
     serverUrl: process.env.MEMWAL_SERVER_URL ?? "https://relayer-staging.memory.walrus.xyz",
   }) as unknown as SdkClient;
-  // Rate-limit the real relayer calls (createMemwal stays unthrottled for tests).
+  // Rate-limit the publish-path relayer calls (createMemwal stays unthrottled for
+  // tests). waitForRememberJob is left direct — it runs in background reconcile.
   return {
-    rememberAndWait: (text, namespace, opts) => rateLimited(() => raw.rememberAndWait(text, namespace, opts)),
+    remember: (text, namespace) => rateLimited(() => raw.remember(text, namespace)),
     recall: (params) => rateLimited(() => raw.recall(params)),
+    waitForRememberJob: (jobId, opts) => raw.waitForRememberJob(jobId, opts),
     health: () => raw.health(),
   };
 }

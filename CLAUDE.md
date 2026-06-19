@@ -49,6 +49,8 @@ Publishing is **app-only**. For an app's submitted markdown:
 
 **Modular-unit principle:** one doc unit = one Walrus Memory `remember()`. **Postgres** holds all structure/order/relationships + a plaintext **`contentCache`** for fast ordered rendering; **Walrus** holds the encrypted text + embeddings (the verifiable + semantic source of truth, referenced by `walrusBlobId`). Page rendering reads Postgres; search/ask read Walrus via `recall`.
 
+**Writes are non-blocking** (so publish fits serverless timeouts): `memwal.remember()` enqueues and returns a `jobId` immediately (the relayer certifies on Walrus in the background — `rememberAndWait` is ~10s/write and would blow the function limit). `DocUnit.walrusBlobId` is therefore **nullable** and filled later: `POST /api/reconcile` (`lib/memwal.ts` `resolveJob` → `repo.pendingUnits`/`setUnitBlobId`) resolves pending `jobId`s to blob ids. Wire a cron/external ping to `/api/reconcile`. Rendering works immediately from `contentCache`; semantic search lags slightly until the relayer certifies.
+
 ### Namespaces (`lib/toc.ts`)
 
 - Protocol version → `proto.<slug>`

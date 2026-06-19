@@ -49,9 +49,18 @@ export const repo: RepoPort = {
     await db.docUnit.create({ data: args });
   },
 
-  async setEntityToc(entityType: EntityType, entityId, tocBlobId) {
-    if (entityType === "protocol") await db.protocol.update({ where: { id: entityId }, data: { tocBlobId } });
-    else await db.application.update({ where: { id: entityId }, data: { tocBlobId } });
+  async pendingUnits(limit) {
+    const rows = await db.docUnit.findMany({
+      where: { walrusBlobId: null, jobId: { not: null } },
+      orderBy: { createdAt: "asc" },
+      take: limit,
+      select: { id: true, jobId: true },
+    });
+    return rows.map((r) => ({ id: r.id, jobId: r.jobId as string }));
+  },
+
+  async setUnitBlobId(id, blobId) {
+    await db.docUnit.update({ where: { id }, data: { walrusBlobId: blobId } });
   },
 
   async setProtocolDescription(protocolId, description) {

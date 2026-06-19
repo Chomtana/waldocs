@@ -27,7 +27,7 @@ export default async function AppPage({ params }: { params: Promise<{ author: st
         </p>
       )}
       {d.steps.map((s) => (
-        <section className="unit" key={s.blobId}>
+        <section className="unit" key={s.id}>
           <h3>{s.title}</h3>
           <Markdown>{s.content}</Markdown>
         </section>

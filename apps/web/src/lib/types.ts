@@ -22,13 +22,15 @@ export interface PublishResult {
   documentId: string;
   version: number;
   namespace: string;
-  blobIds: string[];
-  tocBlobId: string;
+  unitsQueued: number; // memory writes enqueued (certified async; reconcile fills blob ids)
   mergedProtocols: { slug: string; changed: boolean }[];
 }
 
 export interface MemwalPort {
-  remember(text: string, namespace: string): Promise<{ blobId: string }>;
+  // Non-blocking: enqueue the write and return a job id immediately. The relayer
+  // certifies on Walrus in the background; resolveJob() fetches the blob id later.
+  remember(text: string, namespace: string): Promise<{ jobId: string }>;
+  resolveJob(jobId: string): Promise<{ blobId: string } | null>;
   recall(
     query: string,
     namespace: string,
@@ -62,7 +64,7 @@ export interface UpsertAppArgs {
 }
 export interface InsertUnitArgs {
   documentId: string; ord: number; groupTitle: string | null;
-  title: string; contentCache: string; walrusBlobId: string; namespace: string;
+  title: string; contentCache: string; walrusBlobId: string | null; jobId: string | null; namespace: string;
 }
 
 export interface RepoPort {
@@ -75,7 +77,8 @@ export interface RepoPort {
     namespace: string; title: string; summary: string; sourceMarkdown?: string;
   }): Promise<{ id: string }>;
   insertUnit(args: InsertUnitArgs): Promise<void>;
-  setEntityToc(entityType: EntityType, entityId: string, tocBlobId: string): Promise<void>;
+  pendingUnits(limit: number): Promise<{ id: string; jobId: string }[]>;
+  setUnitBlobId(id: string, blobId: string): Promise<void>;
   setProtocolDescription(protocolId: string, description: string): Promise<void>;
   latestProtocolUnits(protocolId: string): Promise<GroupedUnit[]>;
   linkedApps(protocolId: string): Promise<{ id: string; slug: string; name: string; summary: string }[]>;

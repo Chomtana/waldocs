@@ -6,7 +6,7 @@ vi.mock("@/lib/llm", () => ({ getLlm: () => ({}) }));
 vi.mock("@/lib/publish", () => ({
   publishApp: vi.fn(async (input: { entity: { slug: string } }) => ({
     url: `http://h/app/${input.entity.slug}`, slug: input.entity.slug, documentId: "d", version: 1,
-    namespace: "ns", blobIds: ["b1"], tocBlobId: "t", mergedProtocols: [{ slug: "walrus", changed: true }],
+    namespace: "ns", unitsQueued: 1, mergedProtocols: [{ slug: "walrus", changed: true }],
   })),
 }));
 

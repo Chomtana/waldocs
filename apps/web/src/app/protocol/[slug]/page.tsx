@@ -20,7 +20,7 @@ export default async function ProtocolPage({ params }: { params: Promise<{ slug:
             <div className="group-title">{s.group}</div>
             <ul>
               {s.units.map((u) => (
-                <li key={u.blobId}>
+                <li key={u.id}>
                   <a href={`#${anchor(u.title)}`}>{u.title}</a>
                 </li>
               ))}
@@ -48,7 +48,7 @@ export default async function ProtocolPage({ params }: { params: Promise<{ slug:
         {d.description ? <p className="uses">{d.description}</p> : null}
         {d.sections.flatMap((s) =>
           s.units.map((u) => (
-            <section className="unit" id={anchor(u.title)} key={u.blobId}>
+            <section className="unit" id={anchor(u.title)} key={u.id}>
               <h3>{u.title}</h3>
               <Markdown>{u.content}</Markdown>
             </section>
