@@ -89,6 +89,10 @@ a:hover { text-decoration: underline; }
   color: var(--text-soft); border-left: 2px solid transparent;
 }
 .sidebar a:hover { color: var(--brand); text-decoration: none; background: var(--brand-soft); }
+.sidebar li.active > a { color: var(--brand); background: var(--brand-soft); border-left-color: var(--brand); font-weight: 600; }
+.breadcrumb { font-size: 13px; color: var(--text-mute); margin: 0 0 12px; }
+.breadcrumb a { color: var(--text-soft); }
+.breadcrumb a:hover { color: var(--brand); }
 
 .content { min-width: 0; padding: 40px 0 96px; }
 

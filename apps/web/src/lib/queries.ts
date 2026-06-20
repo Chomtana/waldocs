@@ -27,7 +27,8 @@ export async function getProtocol(slug: string) {
     where: { protocolId: p.id }, orderBy: { simplicityRank: "asc" }, include: { application: true },
   });
   const showcase = showcaseRows.map((r) => ({
-    descriptiveTitle: r.descriptiveTitle, slug: r.application.slug, author: r.application.author, repo: r.application.repo,
+    descriptiveTitle: r.descriptiveTitle, name: r.application.name,
+    slug: r.application.slug, author: r.application.author, repo: r.application.repo,
   }));
 
   return { slug: p.slug, name: p.name, description: p.description, sections, showcase };
