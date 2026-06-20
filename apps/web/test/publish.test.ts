@@ -3,7 +3,7 @@ import { publishApp, protocolNamespace, appNamespace, parseSlug } from "@/lib/pu
 import type { MemwalPort, RepoPort, LlmPort, PublishInput, GroupedUnit } from "@/lib/types";
 
 function fakes(mergeChanged: boolean) {
-  const log = { remembered: [] as { text: string; ns: string }[], showcaseFor: [] as string[], protoVersions: 0, describedFor: [] as string[], descSet: [] as string[] };
+  const log = { remembered: [] as { text: string; ns: string }[], showcaseFor: [] as string[], protoVersions: 0, describedFor: [] as string[], descSet: [] as string[], mergedFor: [] as { slug: string; steps: number }[] };
   let job = 0;
   const memwal: MemwalPort = {
     async remember(text, ns) { log.remembered.push({ text, ns }); return { jobId: `job-${++job}` }; },
@@ -18,6 +18,11 @@ function fakes(mergeChanged: boolean) {
     async nextVersion() { return 1; },
     async createDocument(a) { if (a.entityType === "protocol") log.protoVersions++; return { id: `doc-${a.entityType}` }; },
     async insertUnit() {},
+    async findAppDocument() { return null; },
+    async latestDocument() { return null; },
+    async listDocUnits() { return []; },
+    async updateUnitMeta() {},
+    async updateDocumentMeta() {},
     async pendingUnits() { return []; },
     async setUnitBlobId() {},
     async setProtocolDescription(_id, description) { log.descSet.push(description); },
@@ -27,12 +32,13 @@ function fakes(mergeChanged: boolean) {
     async insertPublishEvent() {},
   };
   const llm: LlmPort = {
-    async structureAppDoc() { return { name: "waldocs", summary: "Docs.", steps: [{ title: "Step 1", content: "a" }, { title: "Step 2", content: "b" }] }; },
+    async structureAppDoc() { return { name: "waldocs", summary: "Docs.", steps: [{ title: "Step 1", content: "a", protocol: "walrus" }, { title: "Step 2", content: "b", protocol: null }] }; },
     async describeProtocol({ protocolName }) { log.describedFor.push(protocolName); return { description: `${protocolName} is a protocol.` }; },
-    async mergeProtocolDoc() {
+    async mergeProtocolDoc({ protocolName, appSteps }) {
+      log.mergedFor.push({ slug: protocolName, steps: appSteps.length });
       return mergeChanged
-        ? { changed: true, doc: [{ group: "GETTING STARTED", title: "Introduction", content: "i" }], summary: "ps" }
-        : { changed: false };
+        ? { doc: [{ group: "GETTING STARTED", title: "Introduction", content: "i" }], summary: "ps" }
+        : { doc: [] };
     },
     async curateShowcase() { return { entries: [{ slug: "chomtana/waldocs", descriptiveTitle: "Docs app", simplicityRank: 0, clusterKey: "k" }] }; },
     async answerOverContext() { return { answer: "", usedLabels: [] }; },
@@ -85,6 +91,16 @@ describe("publishApp", () => {
     expect(log.protoVersions).toBe(1);
     expect(log.showcaseFor).toEqual(["proto-1"]);
     expect(res.mergedProtocols).toEqual([{ slug: "walrus", changed: true }]);
+  });
+
+  it("merges each step only into its routed protocol, skipping unrelated ones", async () => {
+    const { memwal, repo, llm, log } = fakes(true);
+    // app uses walrus + sui, but the structurer routes step 1 → walrus and step 2 → null
+    await publishApp({ ...input, usesProtocols: ["walrus", "sui"] }, { repo, memwal, llm, baseUrl: "http://h" });
+    // sui received no routed steps → its merge is skipped entirely
+    expect(log.mergedFor).toEqual([{ slug: "walrus", steps: 1 }]);
+    // but describeProtocol still runs for every used protocol (cards never go stale)
+    expect(log.describedFor).toEqual(["walrus", "sui"]);
   });
 
   it("rejects a non-author/repo slug", async () => {

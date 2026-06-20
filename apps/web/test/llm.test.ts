@@ -10,16 +10,16 @@ describe("llm wrapper", () => {
   it("structureAppDoc returns parsed steps", async () => {
     const gen = fakeGen({ name: "waldocs", summary: "s", steps: [{ title: "Step 1", content: "c" }] });
     const llm = createLlm(gen as never);
-    const out = await llm.structureAppDoc("# raw md");
+    const out = await llm.structureAppDoc("# raw md", ["walrus"]);
     expect(out.steps).toEqual([{ title: "Step 1", content: "c" }]);
     expect(gen).toHaveBeenCalledOnce();
   });
 
-  it("mergeProtocolDoc passes through changed=false", async () => {
-    const llm = createLlm(fakeGen({ changed: false }) as never);
+  it("mergeProtocolDoc returns the desired doc", async () => {
+    const llm = createLlm(fakeGen({ doc: [{ group: "GETTING STARTED", title: "Introduction", content: "i" }], summary: "s" }) as never);
     const out = await llm.mergeProtocolDoc({ protocolName: "Walrus", currentDoc: [], appName: "x", appSteps: [] });
-    expect(out.changed).toBe(false);
-    expect(out.doc).toBeUndefined();
+    expect(out.doc).toHaveLength(1);
+    expect(out.doc[0].title).toBe("Introduction");
   });
 
   it("curateShowcase returns entries", async () => {

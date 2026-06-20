@@ -74,7 +74,10 @@ model DocUnit {
   walrusBlobId String?  // null until the relayer certifies the write (filled by /api/reconcile)
   jobId        String?  // memwal remember job id, used to resolve the blob id later
   namespace    String
+  contentHash  String?  // sha256 of contentCache — identity for in-place upsert (dedup DB + Walrus writes)
   createdAt    DateTime @default(now())
+
+  @@index([documentId, contentHash])
 }
 
 model ShowcaseEntry {

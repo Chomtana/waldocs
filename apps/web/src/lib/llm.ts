@@ -6,13 +6,12 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type { LlmPort } from "./types";
 
-const stepSchema = z.object({ title: z.string(), content: z.string() });
+const stepSchema = z.object({ title: z.string(), content: z.string(), protocol: z.string().nullable() });
 const unitSchema = z.object({ group: z.string().nullable(), title: z.string(), content: z.string() });
 
 const structureSchema = z.object({ name: z.string(), summary: z.string(), steps: z.array(stepSchema) });
 const mergeSchema = z.object({
-  changed: z.boolean(),
-  doc: z.array(unitSchema).optional(),
+  doc: z.array(unitSchema),
   summary: z.string().optional(),
 });
 const describeSchema = z.object({ description: z.string() });
@@ -26,7 +25,7 @@ type Gen = <T>(args: { schema: z.ZodType<T>; prompt: string }) => Promise<{ obje
 
 export function createLlm(gen: Gen): LlmPort {
   return {
-    async structureAppDoc(markdown) {
+    async structureAppDoc(markdown, usesProtocols) {
       const { object } = await gen({
         schema: structureSchema,
         prompt:
@@ -39,7 +38,14 @@ export function createLlm(gen: Gen): LlmPort {
           "0x28bd…508b or suiprivkey1qz…3w8 (public constants like package@version, well-known contract object ids, and URLs " +
           "stay full). If the markdown opens " +
           "with an '## Environment' block listing the protocols/SDKs/versions it was built against, KEEP it verbatim as the " +
-          "FIRST step titled 'Environment'. Return a short human title, a 1-3 sentence summary, and the steps.\n\n" +
+          "FIRST step titled 'Environment'. " +
+          `ROUTING — set each step's "protocol" to the SINGLE most-related protocol slug from this list: ` +
+          `${JSON.stringify(usesProtocols)}. Route by CONCEPTUAL ownership of the feature, not by which SDK the code imports: ` +
+          `e.g. a Walrus Memory feature belongs to "walrus" even though it calls Sui underneath; client-side encryption belongs ` +
+          `to "seal"; raw chain/account/transaction setup belongs to "sui". A step belongs to AT MOST ONE protocol — pick the best ` +
+          `single owner, never several. Set "protocol" to null for steps that are general app setup, the Environment block, or not ` +
+          `specific to any one protocol. Use ONLY slugs from the list, or null. ` +
+          "Return a short human title, a 1-3 sentence summary, and the steps.\n\n" +
           markdown,
       });
       return object;
@@ -65,6 +71,10 @@ export function createLlm(gen: Gen): LlmPort {
         prompt:
           `You maintain the developer docs for the protocol "${protocolName}". The doc is an ordered list of units, ` +
           `each with a sidebar group, and MUST keep a "GETTING STARTED" group containing units titled "Introduction" and "Getting Started". ` +
+          `SCOPE — this doc is ONLY about "${protocolName}". The APP STEPS below were already filtered to this protocol; do NOT invent, ` +
+          `pull in, or retain units whose real subject is a DIFFERENT protocol or SDK, even when the app uses them together ` +
+          `(e.g. a "${protocolName}" doc must not contain another protocol's account-bootstrap, write, or query examples just because the ` +
+          `app chained them). Only document what genuinely belongs to "${protocolName}". ` +
           `EXAMPLES ARE MANDATORY: every unit's content MUST contain at least one concrete, copy-pasteable fenced code block ` +
           "(```bash, ```ts, ```env, …) — a real command and/or code — never prose-only. Preserve real code from the app's steps " +
           `rather than describing it. Fill every example with realistic MOCK values (real package@version, 0x-prefixed object ids ` +
@@ -73,17 +83,19 @@ export function createLlm(gen: Gen): LlmPort {
           `user-specific account/wallet id — truncate them to a recognizable form like 0x28bd…508b or suiprivkey1qz…3w8 ` +
           `(public constants like package@version, well-known contract/registry object ids, and URLs stay full). ` +
           `A reader must be able to copy a block and run it with only trivial substitution. ` +
-          `The app's first step is usually an "Environment" block naming the SDK package(s) and exact versions it used. ` +
-          `Treat that version info as authoritative: keep the protocol doc's code on the CURRENT, non-deprecated syntax for the ` +
-          `newest SDK version you have seen across apps; if this app uses a newer version whose syntax supersedes a deprecated form ` +
-          `in the current doc, UPDATE the doc to the new syntax and note the version it requires (record a known-good minimum ` +
-          `SDK version in GETTING STARTED). ` +
           `"summary" is a 1-3 sentence overview of the "${protocolName}" protocol's documentation for discovery — it describes ` +
-          `the protocol itself, NOT this app and NOT the edits you made; never write phrasing like "Changes:", "Added", "Moved", ` +
-          `or "The <app> app demonstrates…". ` +
-          `Given the current doc and a new app's experience, return changed=true with the FULL improved doc ONLY if the app genuinely ` +
-          `improves it (new feature coverage, clearer steps, or a deprecation fix); otherwise return changed=false.\n\n` +
-          `CURRENT_DOC:\n${JSON.stringify(currentDoc)}\n\nAPP "${appName}" STEPS:\n${JSON.stringify(appSteps)}`,
+          `the protocol itself, NOT this app; never write phrasing like "Changes:", "Added", or "The <app> app demonstrates…". ` +
+          `IN-PLACE UPSERT RULES — the platform stores each unit by the EXACT TEXT of its content and freezes it once written. So: ` +
+          `(1) Return the FULL desired doc as an ordered list. ` +
+          `(2) For every unit already in CURRENT_DOC that should remain, COPY ITS "content" BYTE-FOR-BYTE UNCHANGED into your output — ` +
+          `do NOT reword, reformat, fix, or "improve" the text of an existing unit. (A reworded existing unit is treated as a brand-new ` +
+          `unit and DUPLICATES it — never do this.) You MAY change an existing unit's sidebar "group" and its position/order. ` +
+          `(3) ADD a new unit ONLY for genuinely new coverage this app provides that is not already documented (e.g. a feature, or a ` +
+          `newer non-deprecated syntax) — keep all the mandatory-example/mock-value/redaction/scope rules above for new units. ` +
+          `(4) Keep the mandatory "GETTING STARTED" Introduction/Getting Started units. ` +
+          `If the current doc already covers this app, return it as-is (every existing unit verbatim). ` +
+          `Most publishes should ADD zero or a few new units while echoing existing ones unchanged.\n\n` +
+          `CURRENT_DOC:\n${JSON.stringify(currentDoc)}\n\nAPP "${appName}" STEPS (already filtered to this protocol):\n${JSON.stringify(appSteps)}`,
       });
       return object;
     },

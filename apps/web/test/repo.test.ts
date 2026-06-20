@@ -32,18 +32,34 @@ describe("repo", () => {
   it("reads latest protocol units grouped + ordered", async () => {
     const p = await repo.upsertProtocolBySlug({ slug: "walrus", name: "Walrus", namespace: "proto.walrus" });
     const d = await repo.createDocument({ entityType: "protocol", entityId: p.id, version: 1, namespace: "proto.walrus", title: "Walrus", summary: "s" });
-    await repo.insertUnit({ documentId: d.id, ord: 1, groupTitle: "GETTING STARTED", title: "Getting Started", contentCache: "g", walrusBlobId: "b2", jobId: null, namespace: "proto.walrus" });
-    await repo.insertUnit({ documentId: d.id, ord: 0, groupTitle: "GETTING STARTED", title: "Introduction", contentCache: "i", walrusBlobId: "b1", jobId: null, namespace: "proto.walrus" });
+    await repo.insertUnit({ documentId: d.id, ord: 1, groupTitle: "GETTING STARTED", title: "Getting Started", contentCache: "g", walrusBlobId: "b2", jobId: null, namespace: "proto.walrus", contentHash: "h-g" });
+    await repo.insertUnit({ documentId: d.id, ord: 0, groupTitle: "GETTING STARTED", title: "Introduction", contentCache: "i", walrusBlobId: "b1", jobId: null, namespace: "proto.walrus", contentHash: "h-i" });
     const units = await repo.latestProtocolUnits(p.id);
     expect(units.map((u) => u.title)).toEqual(["Introduction", "Getting Started"]);
     expect(units[0].group).toBe("GETTING STARTED");
   });
 
+  it("upserts units in place: matches by content hash, patches placement", async () => {
+    const p = await repo.upsertProtocolBySlug({ slug: "walrus", name: "Walrus", namespace: "proto.walrus" });
+    const d = await repo.createDocument({ entityType: "protocol", entityId: p.id, version: 1, namespace: "proto.walrus", title: "Walrus", summary: "s" });
+    await repo.insertUnit({ documentId: d.id, ord: 0, groupTitle: "A", title: "U1", contentCache: "c1", walrusBlobId: "b1", jobId: null, namespace: "proto.walrus", contentHash: "h1" });
+    const found = await repo.findAppDocument(p.id, "nope");
+    expect(found).toBeNull();
+    const latest = await repo.latestDocument(p.id);
+    expect(latest?.id).toBe(d.id);
+    const metas = await repo.listDocUnits(d.id);
+    expect(metas).toHaveLength(1);
+    expect(metas[0].contentHash).toBe("h1");
+    await repo.updateUnitMeta(metas[0].id, { ord: 5, groupTitle: "B", title: "U1-renamed" });
+    const after = await repo.listDocUnits(d.id);
+    expect(after[0]).toMatchObject({ ord: 5, groupTitle: "B", title: "U1-renamed", contentHash: "h1" });
+  });
+
   it("lists pending units (jobId set, no blob) and reconciles them", async () => {
     const p = await repo.upsertProtocolBySlug({ slug: "walrus", name: "Walrus", namespace: "proto.walrus" });
     const d = await repo.createDocument({ entityType: "protocol", entityId: p.id, version: 1, namespace: "proto.walrus", title: "Walrus", summary: "s" });
-    await repo.insertUnit({ documentId: d.id, ord: 0, groupTitle: null, title: "U1", contentCache: "c", walrusBlobId: null, jobId: "job-1", namespace: "proto.walrus" });
-    await repo.insertUnit({ documentId: d.id, ord: 1, groupTitle: null, title: "U2", contentCache: "c", walrusBlobId: "already", jobId: "job-2", namespace: "proto.walrus" });
+    await repo.insertUnit({ documentId: d.id, ord: 0, groupTitle: null, title: "U1", contentCache: "c", walrusBlobId: null, jobId: "job-1", namespace: "proto.walrus", contentHash: "h-u1" });
+    await repo.insertUnit({ documentId: d.id, ord: 1, groupTitle: null, title: "U2", contentCache: "c", walrusBlobId: "already", jobId: "job-2", namespace: "proto.walrus", contentHash: "h-u2" });
 
     const pending = await repo.pendingUnits(10);
     expect(pending.map((u) => u.jobId)).toEqual(["job-1"]); // U2 already has a blob

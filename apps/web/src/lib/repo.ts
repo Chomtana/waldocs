@@ -49,6 +49,34 @@ export const repo: RepoPort = {
     await db.docUnit.create({ data: args });
   },
 
+  async findAppDocument(entityId, commitHash) {
+    const row = await db.document.findFirst({
+      where: { entityId, entityType: "application", commitHash },
+      orderBy: { version: "desc" }, select: { id: true, version: true },
+    });
+    return row ?? null;
+  },
+
+  async latestDocument(entityId) {
+    const row = await db.document.findFirst({ where: { entityId }, orderBy: { version: "desc" }, select: { id: true } });
+    return row ?? null;
+  },
+
+  async listDocUnits(documentId) {
+    return db.docUnit.findMany({
+      where: { documentId }, orderBy: { ord: "asc" },
+      select: { id: true, ord: true, groupTitle: true, title: true, contentHash: true },
+    });
+  },
+
+  async updateUnitMeta(id, meta) {
+    await db.docUnit.update({ where: { id }, data: { ord: meta.ord, groupTitle: meta.groupTitle, title: meta.title } });
+  },
+
+  async updateDocumentMeta(id, meta) {
+    await db.document.update({ where: { id }, data: { title: meta.title, summary: meta.summary } });
+  },
+
   async pendingUnits(limit) {
     const rows = await db.docUnit.findMany({
       where: { walrusBlobId: null, jobId: { not: null } },
