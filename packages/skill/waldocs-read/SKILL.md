@@ -19,14 +19,14 @@ This works **like context7**: first resolve an id (`GET /api/protocols` ≈ `res
 
 ## Configuration
 
-- Backend base: `${WALDOCS_API_URL:-http://localhost:3000}`. All endpoints below are **read-only GETs** — never call `POST /api/publish`.
+- Backend base: `${WALDOCS_API_URL:-https://waldocs.vercel.app}`. All endpoints below are **read-only GETs** — never call `POST /api/publish`.
 
 ## Steps
 
 1. **Resolve the protocol slug (never guess it).** List what's published and match the protocol(s) in play to a real `slug`:
 
    ```bash
-   curl -sS "${WALDOCS_API_URL:-http://localhost:3000}/api/protocols"
+   curl -sS "${WALDOCS_API_URL:-https://waldocs.vercel.app}/api/protocols"
    # → [{ "slug": "walrus", "name": "Walrus", "description": "…" }, …]
    ```
 
@@ -35,7 +35,7 @@ This works **like context7**: first resolve an id (`GET /api/protocols` ≈ `res
 2. **Fetch the protocol doc + showcase** for each relevant slug:
 
    ```bash
-   curl -sS "${WALDOCS_API_URL:-http://localhost:3000}/api/protocols/walrus"
+   curl -sS "${WALDOCS_API_URL:-https://waldocs.vercel.app}/api/protocols/walrus"
    ```
 
    Response shape:
@@ -53,7 +53,7 @@ This works **like context7**: first resolve an id (`GET /api/protocols` ≈ `res
 3. **Read a showcase app's full steps** when you want a concrete, end-to-end integration example:
 
    ```bash
-   curl -sS "${WALDOCS_API_URL:-http://localhost:3000}/api/applications/<author>/<repo>"
+   curl -sS "${WALDOCS_API_URL:-https://waldocs.vercel.app}/api/applications/<author>/<repo>"
    # → { slug, name, description, steps: [{ title, content, blobId }], protocols: [{ slug, name }] }
    ```
 

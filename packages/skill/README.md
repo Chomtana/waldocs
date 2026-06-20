@@ -43,7 +43,7 @@ Because these are spec-compliant `SKILL.md` files, the same copy works for runti
 
 ## Configure the backend URL
 
-Both skills read `WALDOCS_API_URL`, defaulting to `http://localhost:3000`. Point them at a running backend if it lives elsewhere:
+Both skills read `WALDOCS_API_URL`, defaulting to `https://waldocs.vercel.app` (the hosted backend). Override it to point at a different backend (e.g. local dev at `http://localhost:3000`):
 
 ```bash
 export WALDOCS_API_URL=https://your-waldocs-deployment.example.com

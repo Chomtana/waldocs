@@ -8,7 +8,7 @@ description: Publish this app's step-by-step docs to the waldocs platform. Use w
 You publish **this application's** step-by-step documentation to the waldocs backend. waldocs only accepts **applications**; the backend (Gemini) structures your markdown, merges useful knowledge into the protocols you used, and curates the showcase. You do NOT call Walrus Memory directly.
 
 ## Configuration
-- Backend: `${WALDOCS_API_URL:-http://localhost:3000}`, endpoint `POST {base}/api/publish`.
+- Backend: `${WALDOCS_API_URL:-https://waldocs.vercel.app}`, endpoint `POST {base}/api/publish`.
 
 ## Steps
 
@@ -42,7 +42,7 @@ You publish **this application's** step-by-step documentation to the waldocs bac
 5. **POST** the payload (the backend does all structuring/merging):
 
 ```bash
-curl -sS -X POST "${WALDOCS_API_URL:-http://localhost:3000}/api/publish" \
+curl -sS -X POST "${WALDOCS_API_URL:-https://waldocs.vercel.app}/api/publish" \
   -H "content-type: application/json" \
   -d @- <<'JSON'
 {
