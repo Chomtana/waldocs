@@ -26,10 +26,25 @@ export async function getProtocol(slug: string) {
   const showcaseRows = await db.showcaseEntry.findMany({
     where: { protocolId: p.id }, orderBy: { simplicityRank: "asc" }, include: { application: true },
   });
-  const showcase = showcaseRows.map((r) => ({
+  let showcase = showcaseRows.map((r) => ({
     descriptiveTitle: r.descriptiveTitle, name: r.application.name,
     slug: r.application.slug, author: r.application.author, repo: r.application.repo,
   }));
+
+  // Fallback: apps added via manual import only LINK to protocols (no curated
+  // ShowcaseEntry rows). When nothing is curated, list every linked app from
+  // ApplicationProtocol, ordered by when the app was created.
+  if (showcase.length === 0) {
+    const links = await db.applicationProtocol.findMany({
+      where: { protocolId: p.id },
+      include: { application: true },
+      orderBy: { application: { createdAt: "asc" } },
+    });
+    showcase = links.map((l) => ({
+      descriptiveTitle: l.application.description ?? l.application.name, name: l.application.name,
+      slug: l.application.slug, author: l.application.author, repo: l.application.repo,
+    }));
+  }
 
   return { slug: p.slug, name: p.name, description: p.description, sections, showcase };
 }
