@@ -53,6 +53,8 @@ Publishing is **app-only**. For an app's submitted markdown:
 
 **Writes are non-blocking** (so publish fits serverless timeouts): `memwal.remember()` enqueues and returns a `jobId` immediately (the relayer certifies on Walrus in the background — `rememberAndWait` is ~10s/write and would blow the function limit). `DocUnit.walrusBlobId` is therefore **nullable** and filled later: `POST /api/reconcile` (`lib/memwal.ts` `resolveJob` → `repo.pendingUnits`/`setUnitBlobId`) resolves pending `jobId`s to blob ids. Wire a cron/external ping to `/api/reconcile`. Rendering works immediately from `contentCache`; semantic search lags slightly until the relayer certifies.
 
+**Manual import / publish-bypass (`lib/publish.ts` `importEntity`, `POST /api/import`):** writes a **protocol OR application** doc *directly* to Postgres + Walrus, skipping the LLM structure/merge/route pipeline — for hand-authored docs. Supply `units` (`{group?,title,content}[]`) for exact control, or `markdown` split deterministically by `lib/parseDoc.ts` `parseDocToUnits` (application → `##` = unit; protocol → `##` = sidebar group, `###` = unit). Reuses the same `upsertUnits` (content-hash dedup) and `_toc` write as `publishApp`. For applications, `usesProtocols` only **links** protocols (showcase) — it does NOT merge into them. The route is gated by `WALDOCS_IMPORT_TOKEN` (unset → 503 disabled; otherwise requires `Authorization: Bearer <token>`).
+
 ### Namespaces (`lib/toc.ts`)
 
 - Protocol version → `proto.<slug>`

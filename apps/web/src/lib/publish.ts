@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { LlmPort, MemwalPort, PublishInput, PublishResult, RepoPort } from "./types";
 import { encodeTocHeader } from "./toc";
+import { parseDocToUnits } from "./parseDoc";
 
 export function protocolNamespace(slug: string): string { return `proto.${slug}`; }
 export function appNamespace(slug: string, commit: string): string { return `${slug}/${commit}`; }
@@ -172,4 +173,88 @@ export async function publishApp(
   await repo.insertPublishEvent({ entityType: "application", entityId: appId, documentId, meta: { repoUrl: entity.repoUrl, steps: structured.steps.length } });
 
   return { url: `${baseUrl}/app/${entity.slug}`, slug: entity.slug, documentId, version, namespace: ns, unitsQueued, mergedProtocols };
+}
+
+// ─── Manual import (publish-bypass) ──────────────────────────────────────────
+// Writes a protocol OR application doc DIRECTLY to Postgres + Walrus, skipping the
+// LLM structure/merge/route pipeline. Supply `units` for exact control, or
+// `markdown` to be split deterministically (parseDocToUnits). For applications,
+// `usesProtocols` only LINKS the protocols (for showcase) — it does NOT merge into them.
+
+export interface ImportUnit { group?: string | null; title: string; content: string }
+export type ImportEntity =
+  | { type: "protocol"; slug: string; name?: string; description?: string }
+  | { type: "application"; slug: string; name?: string; description?: string; repoUrl?: string; commitHash: string };
+export interface ImportInput {
+  entity: ImportEntity;
+  markdown?: string;
+  units?: ImportUnit[];
+  usesProtocols?: string[];
+}
+export interface ImportResult {
+  url: string; slug: string; entityType: "protocol" | "application";
+  documentId: string; version: number; namespace: string; unitsWritten: number;
+}
+
+export async function importEntity(
+  input: ImportInput,
+  deps: { repo: RepoPort; memwal: MemwalPort; baseUrl: string },
+): Promise<ImportResult> {
+  const { repo, memwal, baseUrl } = deps;
+  const { entity } = input;
+
+  const units: DesiredUnit[] = (input.units?.length
+    ? input.units.map((u) => ({ group: u.group ?? null, title: u.title, content: u.content }))
+    : parseDocToUnits(input.markdown ?? "", entity.type));
+  if (!units.length) throw new Error("no doc units to import: provide non-empty `units` or `markdown`.");
+
+  if (entity.type === "protocol") {
+    const ns = protocolNamespace(entity.slug);
+    const name = entity.name ?? entity.slug;
+    const { id: protocolId } = await repo.upsertProtocolBySlug({ slug: entity.slug, name, namespace: ns });
+    if (entity.description?.trim()) await repo.setProtocolDescription(protocolId, entity.description.trim());
+
+    let doc = await repo.latestDocument(protocolId);
+    let version = 1;
+    if (!doc) {
+      version = await repo.nextVersion(protocolId);
+      doc = await repo.createDocument({
+        entityType: "protocol", entityId: protocolId, version, namespace: ns, title: name, summary: entity.description ?? "",
+      });
+    }
+    const unitsWritten = await upsertUnits({ repo, memwal }, doc.id, ns, units);
+    await memwal.remember(encodeTocHeader("protocol", entity.slug, name, entity.description ?? ""), "_toc");
+    return { url: `${baseUrl}/protocol/${entity.slug}`, slug: entity.slug, entityType: "protocol", documentId: doc.id, version, namespace: ns, unitsWritten };
+  }
+
+  // application
+  const { author, repo: repoName } = parseSlug(entity.slug); // throws on bad slug
+  const ns = appNamespace(entity.slug, entity.commitHash);
+  const name = entity.name ?? entity.slug;
+  const { id: appId } = await repo.upsertApplication({
+    slug: entity.slug, author, repo: repoName, name,
+    description: entity.description, namespace: ns, latestCommit: entity.commitHash, repoUrl: entity.repoUrl,
+  });
+  for (const protoSlug of input.usesProtocols ?? []) {
+    const { id: protocolId } = await repo.upsertProtocolBySlug({ slug: protoSlug, name: protoSlug, namespace: protocolNamespace(protoSlug) });
+    await repo.linkAppProtocol(appId, protocolId);
+  }
+
+  const existing = await repo.findAppDocument(appId, entity.commitHash);
+  let documentId: string;
+  let version: number;
+  if (existing) {
+    documentId = existing.id;
+    version = existing.version;
+    await repo.updateDocumentMeta(documentId, { title: name, summary: entity.description ?? "" });
+  } else {
+    version = await repo.nextVersion(appId);
+    ({ id: documentId } = await repo.createDocument({
+      entityType: "application", entityId: appId, version, commitHash: entity.commitHash,
+      namespace: ns, title: name, summary: entity.description ?? "", sourceMarkdown: input.markdown,
+    }));
+  }
+  const unitsWritten = await upsertUnits({ repo, memwal }, documentId, ns, units);
+  await memwal.remember(encodeTocHeader("application", entity.slug, name, entity.description ?? ""), "_toc");
+  return { url: `${baseUrl}/app/${entity.slug}`, slug: entity.slug, entityType: "application", documentId, version, namespace: ns, unitsWritten };
 }
