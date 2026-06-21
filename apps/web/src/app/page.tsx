@@ -14,17 +14,20 @@ export default async function Home() {
       </div>
       <ChatBox />
       <div className="section-label">Protocols</div>
-      <ul className="card-list">
+      <ul className="row-list">
         {protocols.map((p) => (
           <li key={p.slug}>
-            <Link href={`/protocol/${p.slug}`} className="card">
-              <div className="card-title">{p.name}</div>
-              {p.description ? <div className="card-desc">{p.description}</div> : null}
+            <Link href={`/protocol/${p.slug}`} className="row-item">
+              <div className="row-body">
+                <div className="row-title">{p.name}</div>
+                {p.description ? <div className="row-desc">{p.description}</div> : null}
+              </div>
+              <span className="row-arrow" aria-hidden>→</span>
             </Link>
           </li>
         ))}
         {protocols.length === 0 && (
-          <li className="card-desc">No protocols yet — publish an app with the waldocs-publish skill.</li>
+          <li className="row-empty">No protocols yet — publish an app with the waldocs-publish skill.</li>
         )}
       </ul>
     </main>

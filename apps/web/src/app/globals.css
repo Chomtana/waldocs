@@ -99,15 +99,41 @@ a:hover { text-decoration: underline; }
 /* ── Home ────────────────────────────────────────────────────────────────── */
 .hero h1 { font-size: 40px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 6px; }
 .hero .tagline { color: var(--text-soft); font-size: 18px; margin: 0 0 28px; }
-.card-list { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 12px; }
-.card {
-  display: block; padding: 16px 18px; border: 1px solid var(--border);
-  border-radius: var(--radius); background: var(--bg-soft);
-  transition: border-color 0.15s, transform 0.15s;
+/* ── Divided list (borderless index rows) ─────────────────────────────────── */
+.row-list {
+  list-style: none; padding: 0; margin: 8px 0 0;
+  border-top: 1px solid var(--border);
 }
-.card:hover { border-color: var(--brand); text-decoration: none; transform: translateY(-1px); }
-.card .card-title { font-weight: 600; color: var(--text); font-size: 16px; }
-.card .card-desc { color: var(--text-soft); font-size: 14px; margin-top: 4px; }
+.row-list > li { border-bottom: 1px solid var(--border); }
+.row-item {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 8px;
+  border-radius: 8px;
+  transition: background 0.15s, padding 0.15s;
+}
+.row-item:hover {
+  text-decoration: none; background: var(--bg-soft);
+  padding-left: 14px; padding-right: 14px;
+}
+.row-item .row-body { flex: 1; min-width: 0; }
+.row-item .row-title {
+  font-weight: 600; color: var(--text); font-size: 16px; letter-spacing: -0.01em;
+  transition: color 0.15s;
+}
+.row-item:hover .row-title { color: var(--brand); }
+.row-item .row-desc {
+  color: var(--text-soft); font-size: 14px; margin-top: 2px; line-height: 1.5;
+}
+.row-item .row-arrow {
+  flex-shrink: 0; color: var(--brand); font-size: 18px;
+  transform: translateX(-6px); opacity: 0;
+  transition: transform 0.15s, opacity 0.15s;
+}
+.row-item:hover .row-arrow { transform: translateX(0); opacity: 1; }
+.row-empty {
+  padding: 20px 8px; color: var(--text-mute); font-size: 14px;
+  border-bottom: 1px solid var(--border);
+}
 .section-label {
   font-size: 13px; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.05em; color: var(--text-mute); margin: 36px 0 4px;
@@ -162,21 +188,78 @@ a:hover { text-decoration: underline; }
 }
 
 /* ── Ask / chat boxes ────────────────────────────────────────────────────── */
-.askbox { margin-top: 32px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-soft); }
-.askbox.hero-chat { margin: 24px 0 8px; padding: 18px; border-color: var(--brand); }
-.askbox .label { font-weight: 600; font-size: 14px; }
-.askbox .row { display: flex; gap: 8px; margin-top: 10px; }
+.askbox {
+  margin-top: 32px; padding: 16px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: linear-gradient(180deg, var(--bg-soft), color-mix(in srgb, var(--bg-soft) 60%, var(--bg)));
+}
+.askbox .label {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-weight: 600; font-size: 13px; color: var(--text-soft);
+}
+.askbox .label svg { color: var(--brand); }
+.askbox .row {
+  display: flex; gap: 6px; margin-top: 10px; align-items: center;
+  padding: 5px 5px 5px 12px;
+  border: 1px solid var(--border); border-radius: 11px; background: var(--bg);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.askbox .row:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
 .askbox input {
-  flex: 1; padding: 9px 12px; border-radius: 8px;
-  border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px;
+  flex: 1; padding: 8px 4px; border: none; background: none;
+  color: var(--text); font-size: 14.5px;
 }
-.askbox input:focus { outline: none; border-color: var(--brand); }
+.askbox input::placeholder { color: var(--text-mute); }
+.askbox input:focus { outline: none; }
 .askbox button {
-  padding: 9px 18px; border-radius: 8px; border: none;
+  flex-shrink: 0; padding: 8px 18px; border-radius: 8px; border: none;
   background: var(--brand); color: #fff; font-weight: 600; cursor: pointer; font-size: 14px;
+  transition: filter 0.15s, transform 0.1s;
 }
+.askbox button:not(:disabled):hover { filter: brightness(1.08); }
+.askbox button:not(:disabled):active { transform: scale(0.97); }
 .askbox button:disabled { opacity: 0.5; cursor: not-allowed; }
-.askbox .answer { margin-top: 12px; white-space: pre-wrap; color: var(--text-soft); font-size: 14px; }
+.askbox .answer {
+  margin-top: 12px; padding: 12px 14px; white-space: pre-wrap;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); color: var(--text-soft); font-size: 14px; line-height: 1.6;
+}
+
+/* ── Hero ask box (modern unified prompt) ─────────────────────────────────── */
+.askbox.hero-chat { margin: 28px 0 8px; padding: 0; border: none; background: none; }
+.askbox.hero-chat .row {
+  margin-top: 0; gap: 8px; align-items: center;
+  padding: 7px 7px 7px 16px;
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--bg-soft);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.askbox.hero-chat .row:focus-within {
+  border-color: var(--brand); background: var(--bg);
+  box-shadow: 0 0 0 4px var(--brand-soft);
+}
+.askbox.hero-chat .prompt-icon {
+  display: inline-flex; flex-shrink: 0; color: var(--brand); opacity: 0.85;
+}
+.askbox.hero-chat input {
+  flex: 1; border: none; background: none; padding: 10px 4px;
+  font-size: 16px; color: var(--text);
+}
+.askbox.hero-chat input::placeholder { color: var(--text-mute); }
+.askbox.hero-chat input:focus { border: none; }
+.askbox.hero-chat button {
+  flex-shrink: 0; padding: 11px 22px; border-radius: 10px;
+  font-size: 15px; letter-spacing: 0.01em;
+  transition: opacity 0.15s, transform 0.1s, filter 0.15s;
+}
+.askbox.hero-chat button:not(:disabled):hover { filter: brightness(1.08); }
+.askbox.hero-chat button:not(:disabled):active { transform: scale(0.97); }
+.askbox.hero-chat .answer {
+  margin-top: 14px; padding: 14px 16px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg-soft); line-height: 1.6;
+}
 
 /* ── Showcase ────────────────────────────────────────────────────────────── */
 .showcase-grid { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 10px; }
