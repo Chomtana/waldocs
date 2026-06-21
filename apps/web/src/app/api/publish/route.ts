@@ -15,6 +15,25 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "invalid payload", issues: parsed.error.issues }, { status: 400 });
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? new URL(req.url).origin;
+
+  // Demo short-circuit: pretend the publish succeeded without touching the LLM,
+  // Walrus, or Postgres. Returns a result shaped exactly like publishApp's.
+  if (process.env.DUMMY_PUBLISH === "true") {
+    const { slug, commitHash } = parsed.data.entity;
+    return NextResponse.json(
+      {
+        url: `${baseUrl}/app/${slug}`,
+        slug,
+        documentId: "dummy-publish",
+        version: 1,
+        namespace: `${slug}/${commitHash}`,
+        unitsQueued: 0,
+        mergedProtocols: parsed.data.usesProtocols.map((s) => ({ slug: s, changed: true })),
+      },
+      { status: 200 },
+    );
+  }
+
   try {
     const result = await publishApp(parsed.data, { repo, memwal: getMemwal(), llm: getLlm(), baseUrl });
     return NextResponse.json(result, { status: 200 });
