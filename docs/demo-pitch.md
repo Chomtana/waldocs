@@ -34,11 +34,11 @@
 
 **[SHOW: the showcase on the protocol page]**
 
-> "And down here is the showcase, the apps that actually use this protocol, and you can jump into any of them to see how they did it. You can click on PredictFlow"
+> "And down here is the showcase, the apps that actually use this protocol, and you can jump into any of them to see how they did it. You can click on PredictFlow and it will show you step by step document on how to implement this project and integrate with each Sui protocol."
 
 **[SHOW: Claude Code — invoke the `waldocs-read` skill]**
 
-> "And the best part, an agent can read all of this while it codes. Here in Claude Code I just ask how to take a payment and mint a prediction in one transaction, it calls waldocs, and pulls the real, current code straight out, examples and all."
+> "And the best part, an agent can read all of this while it codes. Here in Claude Code I ask how to mint a prediction in Deepbook, and it calls the waldocs tool, pulls the exact protocol docs it needs, and loads them straight into its context."
 
 ---
 
